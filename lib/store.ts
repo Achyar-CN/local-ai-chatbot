@@ -101,6 +101,39 @@ export async function renameConversation(id: string, title: string) {
   }
 }
 
+export interface SearchHit {
+  id: string;
+  title: string;
+  snippet: string;
+}
+
+function plain(m: UIMessage): string {
+  return (m.parts as { type: string; text?: string }[])
+    .filter((p) => p.type === "text")
+    .map((p) => p.text ?? "")
+    .join(" ");
+}
+
+/** Search conversation titles and message text. */
+export async function searchConversations(query: string): Promise<SearchHit[]> {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const index = await listConversations();
+  const hits: SearchHit[] = [];
+  for (const meta of index) {
+    const conv = await getConversation(meta.id);
+    if (!conv) continue;
+    const body = conv.messages.map(plain).join("  ");
+    const hay = `${meta.title}  ${body}`.toLowerCase();
+    const at = hay.indexOf(q);
+    if (at < 0) continue;
+    const start = Math.max(0, at - 40);
+    const snippet = `${start > 0 ? "…" : ""}${`${meta.title}  ${body}`.slice(start, at + q.length + 60).trim()}…`;
+    hits.push({ id: meta.id, title: meta.title, snippet });
+  }
+  return hits;
+}
+
 export async function deleteConversation(id: string) {
   const index = await readIndex();
   await writeIndex(index.filter((c) => c.id !== id));

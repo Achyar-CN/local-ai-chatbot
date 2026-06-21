@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import type { UIMessage } from "ai";
-import { User, ShieldAlert } from "lucide-react";
+import { User, ShieldAlert, Volume2, Square, Copy, Check } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { Sources } from "./Sources";
 import { Brandmark } from "./Brandmark";
+import { speak, stopSpeaking, speechOutputSupported } from "@/lib/voice";
 import type { Source } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -85,7 +87,49 @@ export function MessageBubble({
           {text ? <Markdown>{text}</Markdown> : <span className="text-sm text-muted">…</span>}
           {!isUser && !blocked && <Sources sources={sources} onOpen={onOpenSource} />}
         </div>
+        {!isUser && !blocked && text && <MessageActions text={text} />}
       </div>
+    </div>
+  );
+}
+
+function MessageActions({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  const toggleSpeak = () => {
+    if (speaking) {
+      stopSpeaking();
+      setSpeaking(false);
+    } else {
+      speak(text);
+      setSpeaking(true);
+    }
+  };
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1 pl-1">
+      <button
+        onClick={copy}
+        aria-label="Copy answer"
+        className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-faint transition-colors hover:text-foreground cursor-pointer"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+      {speechOutputSupported() && (
+        <button
+          onClick={toggleSpeak}
+          aria-label={speaking ? "Stop reading" : "Read aloud"}
+          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-faint transition-colors hover:text-foreground cursor-pointer"
+        >
+          {speaking ? <Square className="h-3.5 w-3.5 fill-current" /> : <Volume2 className="h-3.5 w-3.5" />}
+        </button>
+      )}
     </div>
   );
 }

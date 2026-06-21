@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import {
   Upload,
   FileText,
@@ -15,10 +15,18 @@ import {
   Globe,
   ListFilter,
   Download,
+  Search,
+  Sparkles,
+  Route,
+  Wrench,
+  Lock,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Brandmark, Wordmark } from "./Brandmark";
 import { CHAT_MODELS } from "@/lib/config";
+import { isLockEnabled, setPin, removePin, lockNow } from "@/lib/lock";
 import type { DocumentMeta, ConversationMeta } from "@/lib/types";
 import { cn, formatBytes } from "@/lib/utils";
 
@@ -40,13 +48,28 @@ interface SidebarProps {
   setWebOn: (v: boolean) => void;
   rerankOn: boolean;
   setRerankOn: (v: boolean) => void;
+  expandOn: boolean;
+  setExpandOn: (v: boolean) => void;
+  smartRoute: boolean;
+  setSmartRoute: (v: boolean) => void;
+  toolsOn: boolean;
+  setToolsOn: (v: boolean) => void;
   guardOn: boolean;
   setGuardOn: (v: boolean) => void;
   topK: number;
   setTopK: (v: number) => void;
+  activeDocIds: string[];
+  onToggleDoc: (id: string) => void;
   onExport: () => void;
   canExport: boolean;
+  onLockNow: () => void;
   ollamaOnline: boolean | null;
+}
+
+interface SearchHit {
+  id: string;
+  title: string;
+  snippet: string;
 }
 
 type Tab = "chats" | "docs";
@@ -55,6 +78,25 @@ export function Sidebar(props: SidebarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [tab, setTab] = useState<Tab>("chats");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchHit[] | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults(null);
+      return;
+    }
+    const id = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        setResults((await r.json()).hits ?? []);
+      } catch {
+        setResults([]);
+      }
+    }, 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
   const handleDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -106,7 +148,22 @@ export function Sidebar(props: SidebarProps) {
       {/* Tab content */}
       <div className="mt-3 flex-1 overflow-y-auto px-3">
         {tab === "chats" ? (
-          <ConversationList {...props} />
+          <>
+            <div className="relative mb-2">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search conversations"
+                className="w-full rounded-lg border border-border bg-bg/50 py-1.5 pl-8 pr-2 text-xs text-foreground outline-none placeholder:text-faint focus:border-accent/50"
+              />
+            </div>
+            {results !== null ? (
+              <SearchResults hits={results} onSelect={props.onSelectConversation} />
+            ) : (
+              <ConversationList {...props} />
+            )}
+          </>
         ) : (
           <DocsPanel
             {...props}
@@ -133,8 +190,20 @@ export function Sidebar(props: SidebarProps) {
           checked={props.webOn}
           onChange={props.setWebOn}
         />
+        <Toggle
+          label="Smart routing"
+          icon={<Route className="h-3.5 w-3.5 text-muted" />}
+          checked={props.smartRoute}
+          onChange={props.setSmartRoute}
+        />
         {props.ragOn && (
           <>
+            <Toggle
+              label="Query expansion"
+              icon={<Sparkles className="h-3.5 w-3.5 text-muted" />}
+              checked={props.expandOn}
+              onChange={props.setExpandOn}
+            />
             <Toggle
               label="Hybrid rerank"
               icon={<ListFilter className="h-3.5 w-3.5 text-muted" />}
@@ -163,6 +232,12 @@ export function Sidebar(props: SidebarProps) {
 
         <p className="label-mono px-1 pt-1.5">Engine</p>
         <Toggle
+          label="Tools (math, web fetch)"
+          icon={<Wrench className="h-3.5 w-3.5 text-muted" />}
+          checked={props.toolsOn}
+          onChange={props.setToolsOn}
+        />
+        <Toggle
           label="Safety guardrail"
           icon={<ShieldCheck className="h-3.5 w-3.5 text-muted" />}
           checked={props.guardOn}
@@ -189,6 +264,8 @@ export function Sidebar(props: SidebarProps) {
         >
           <Download className="h-3.5 w-3.5" /> Export chat
         </button>
+
+        <LockControl onLockNow={props.onLockNow} />
 
         <div className="flex items-center justify-between px-1 pt-0.5 font-mono text-[10px] uppercase tracking-wider text-faint">
           <span className="flex items-center gap-1.5">
@@ -325,13 +402,13 @@ function DocsPanel(
         <span className="text-xs font-medium text-foreground">
           {props.uploading ? "Indexing…" : "Drop files or click to upload"}
         </span>
-        <span className="label-mono">PDF · DOCX · TXT · MD</span>
+        <span className="label-mono">PDF · DOCX · IMG · TXT · MD</span>
       </button>
       <input
         ref={props.inputRef}
         type="file"
         multiple
-        accept=".pdf,.docx,.txt,.md,.csv,.json"
+        accept=".pdf,.docx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp"
         className="hidden"
         onChange={(e) => {
           if (e.target.files?.length) props.onUpload(e.target.files);
@@ -340,35 +417,54 @@ function DocsPanel(
       />
 
       {props.documents.length === 0 ? (
-        <div className="px-2 py-8 text-center text-xs text-faint">
-          Your library is empty.
-        </div>
+        <div className="px-2 py-8 text-center text-xs text-faint">Your library is empty.</div>
       ) : (
-        <ul className="mt-3 space-y-0.5">
-          {props.documents.map((doc) => (
-            <li
-              key={doc.id}
-              className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-foreground/[0.03]"
-            >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent-soft/60 text-accent">
-                <FileText className="h-3.5 w-3.5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-foreground">{doc.name}</p>
-                <p className="font-mono text-[10px] text-faint">
-                  {doc.chunks} chunks · {formatBytes(doc.size)}
-                </p>
-              </div>
-              <button
-                onClick={() => props.onDeleteDocument(doc.id)}
-                aria-label={`Delete ${doc.name}`}
-                className="shrink-0 rounded-md p-1 text-faint opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="mb-1 mt-3 px-1 font-mono text-[10px] uppercase tracking-wider text-faint">
+            {props.activeDocIds.length === 0
+              ? "Using all documents"
+              : `Scoped to ${props.activeDocIds.length}`}
+          </p>
+          <ul className="space-y-0.5">
+            {props.documents.map((doc) => {
+              const scoped = props.activeDocIds.includes(doc.id);
+              return (
+                <li
+                  key={doc.id}
+                  className="group flex items-center gap-2 rounded-lg px-1.5 py-2 transition-colors hover:bg-foreground/[0.03]"
+                >
+                  <button
+                    onClick={() => props.onToggleDoc(doc.id)}
+                    aria-label={scoped ? "Remove from scope" : "Add to scope"}
+                    className="shrink-0 text-faint hover:text-accent cursor-pointer"
+                  >
+                    {scoped ? (
+                      <CheckSquare className="h-4 w-4 text-accent" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent-soft/60 text-accent">
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-foreground">{doc.name}</p>
+                    <p className="font-mono text-[10px] text-faint">
+                      {doc.chunks} chunks · {formatBytes(doc.size)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => props.onDeleteDocument(doc.id)}
+                    aria-label={`Delete ${doc.name}`}
+                    className="shrink-0 rounded-md p-1 text-faint opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );
@@ -408,5 +504,94 @@ function Toggle({
         />
       </button>
     </label>
+  );
+}
+
+function SearchResults({
+  hits,
+  onSelect,
+}: {
+  hits: SearchHit[];
+  onSelect: (id: string) => void;
+}) {
+  if (hits.length === 0) {
+    return <div className="px-2 py-8 text-center text-xs text-faint">No matches.</div>;
+  }
+  return (
+    <ul className="space-y-1">
+      {hits.map((h) => (
+        <li key={h.id}>
+          <button
+            onClick={() => onSelect(h.id)}
+            className="w-full rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-foreground/[0.03] cursor-pointer"
+          >
+            <p className="truncate text-xs font-medium text-foreground">{h.title}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-faint">{h.snippet}</p>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function LockControl({ onLockNow }: { onLockNow: () => void }) {
+  const [enabled, setEnabled] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [pin, setPinValue] = useState("");
+  useEffect(() => setEnabled(isLockEnabled()), []);
+
+  const save = async () => {
+    if (pin.trim().length < 4) return;
+    if (enabled) {
+      if (await removePin(pin.trim())) {
+        setEnabled(false);
+        setEditing(false);
+        setPinValue("");
+      }
+    } else {
+      await setPin(pin.trim());
+      setEnabled(true);
+      setEditing(false);
+      setPinValue("");
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => setEditing((v) => !v)}
+          className="press flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-elevated py-2 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+        >
+          <Lock className="h-3.5 w-3.5" /> {enabled ? "Change PIN" : "Set PIN"}
+        </button>
+        {enabled && (
+          <button
+            onClick={onLockNow}
+            className="press rounded-lg border border-border bg-elevated px-3 py-2 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+          >
+            Lock now
+          </button>
+        )}
+      </div>
+      {editing && (
+        <div className="flex gap-1.5">
+          <input
+            type="password"
+            inputMode="numeric"
+            value={pin}
+            onChange={(e) => setPinValue(e.target.value)}
+            placeholder={enabled ? "Current PIN to remove" : "New PIN (min 4)"}
+            className="w-full rounded-lg border border-border bg-bg/50 px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-accent/50"
+          />
+          <button
+            onClick={save}
+            className="press rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg cursor-pointer"
+          >
+            {enabled ? "Remove" : "Save"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -10,7 +10,7 @@ async function embed(inputs: string[]): Promise<number[][]> {
   const res = await fetch(`${config.ollamaBaseURL}/embed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: config.embedModel, input: inputs }),
+    body: JSON.stringify({ model: config.embedModel, input: inputs, keep_alive: config.keepAlive }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");

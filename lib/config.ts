@@ -10,6 +10,10 @@ export const config = {
   chunkSize: Number(process.env.RAG_CHUNK_SIZE ?? 900),
   chunkOverlap: Number(process.env.RAG_CHUNK_OVERLAP ?? 120),
   lancedbPath: process.env.LANCEDB_PATH ?? "./.lancedb",
+  // Keep models resident in Ollama between requests for a faster first token.
+  keepAlive: process.env.OLLAMA_KEEP_ALIVE ?? "30m",
+  // Cap conversation history sent to the model (characters) to stay fast.
+  historyBudget: Number(process.env.HISTORY_BUDGET ?? 8000),
   // Optional self-hosted SearXNG for the most reliable keyless web search.
   searxngUrl: process.env.SEARXNG_URL ?? "",
   // Llama Guard categories that actually block. Serious-harm only by default,

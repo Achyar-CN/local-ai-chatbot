@@ -76,17 +76,18 @@ export async function addChunks(rows: ChunkRow[]) {
 export async function searchChunks(
   queryVector: number[],
   k = config.topK,
+  docIds?: string[],
 ): Promise<RetrievedChunk[]> {
   const table = await getTable();
   if ((await table.countRows()) === 0) return [];
   // Note: no .select() projection so LanceDB keeps returning `_distance`
   // (selecting explicit columns triggers a deprecation around scoring autoprojection).
-  const results = await table
-    .query()
-    .nearestTo(queryVector)
-    .distanceType("cosine")
-    .limit(k)
-    .toArray();
+  let q = table.query().nearestTo(queryVector).distanceType("cosine");
+  if (docIds && docIds.length > 0) {
+    const list = docIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(", ");
+    q = q.where(`docId IN (${list})`);
+  }
+  const results = await q.limit(k).toArray();
 
   return results.map((r: Record<string, unknown>) => ({
     id: r.id as string,

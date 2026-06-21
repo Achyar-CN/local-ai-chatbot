@@ -9,9 +9,26 @@ import { Composer } from "@/components/Composer";
 import { MessageBubble, ThinkingBubble } from "@/components/MessageBubble";
 import { SourceViewer } from "@/components/SourceViewer";
 import { Brandmark } from "@/components/Brandmark";
+import { LockScreen } from "@/components/LockScreen";
 import { config, DEFAULT_CHAT_MODEL } from "@/lib/config";
+import { isLockEnabled, isUnlocked, lockNow } from "@/lib/lock";
 import type { DocumentMeta, ConversationMeta, Source } from "@/lib/types";
 import type { UIMessage } from "ai";
+
+interface Settings {
+  model: string;
+  ragOn: boolean;
+  webOn: boolean;
+  rerankOn: boolean;
+  expandOn: boolean;
+  smartRoute: boolean;
+  toolsOn: boolean;
+  guardOn: boolean;
+  topK: number;
+  activeDocIds: string[];
+}
+
+const SETTINGS_KEY = "atlas.settings";
 
 const SUGGESTIONS = [
   "Summarize the documents I uploaded",
@@ -42,8 +59,12 @@ export default function Home() {
   const [ragOn, setRagOn] = useState(true);
   const [webOn, setWebOn] = useState(true);
   const [rerankOn, setRerankOn] = useState(true);
+  const [expandOn, setExpandOn] = useState(true);
+  const [smartRoute, setSmartRoute] = useState(true);
+  const [toolsOn, setToolsOn] = useState(false);
   const [guardOn, setGuardOn] = useState(true);
   const [topK, setTopK] = useState<number>(config.topK);
+  const [activeDocIds, setActiveDocIds] = useState<string[]>([]);
 
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
@@ -53,6 +74,9 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [ollamaOnline, setOllamaOnline] = useState<boolean | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+
+  const [locked, setLocked] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedRef = useRef<string>("");
@@ -91,6 +115,61 @@ export default function Home() {
       .then((d) => setOllamaOnline(d.online))
       .catch(() => setOllamaOnline(false));
   }, [refreshDocs, refreshConversations]);
+
+  // Lock gate + load persisted settings (client only).
+  useEffect(() => {
+    if (isLockEnabled() && !isUnlocked()) setLocked(true);
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        const s = JSON.parse(raw) as Partial<Settings>;
+        if (s.model) setModel(s.model);
+        if (typeof s.ragOn === "boolean") setRagOn(s.ragOn);
+        if (typeof s.webOn === "boolean") setWebOn(s.webOn);
+        if (typeof s.rerankOn === "boolean") setRerankOn(s.rerankOn);
+        if (typeof s.expandOn === "boolean") setExpandOn(s.expandOn);
+        if (typeof s.smartRoute === "boolean") setSmartRoute(s.smartRoute);
+        if (typeof s.toolsOn === "boolean") setToolsOn(s.toolsOn);
+        if (typeof s.guardOn === "boolean") setGuardOn(s.guardOn);
+        if (typeof s.topK === "number") setTopK(s.topK);
+        if (Array.isArray(s.activeDocIds)) setActiveDocIds(s.activeDocIds);
+      }
+    } catch {
+      /* ignore */
+    }
+    setSettingsLoaded(true);
+  }, []);
+
+  // Persist settings.
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    const s: Settings = {
+      model,
+      ragOn,
+      webOn,
+      rerankOn,
+      expandOn,
+      smartRoute,
+      toolsOn,
+      guardOn,
+      topK,
+      activeDocIds,
+    };
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    } catch {
+      /* ignore */
+    }
+  }, [settingsLoaded, model, ragOn, webOn, rerankOn, expandOn, smartRoute, toolsOn, guardOn, topK, activeDocIds]);
+
+  // Warm up models for a faster first token.
+  useEffect(() => {
+    fetch("/api/warmup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    }).catch(() => {});
+  }, [model]);
 
   // --- persist conversation on completion ---------------------------------
   useEffect(() => {
@@ -144,9 +223,26 @@ export default function Home() {
     setInput("");
     sendMessage(
       { text: value },
-      { body: { useRag: ragOn, web: webOn, rerank: rerankOn, guard: guardOn, model, topK } },
+      {
+        body: {
+          useRag: ragOn,
+          web: webOn,
+          rerank: rerankOn,
+          expand: expandOn,
+          smartRoute,
+          tools: toolsOn,
+          guard: guardOn,
+          model,
+          topK,
+          docIds: activeDocIds.length > 0 ? activeDocIds : undefined,
+          hasDocs: documents.length > 0,
+        },
+      },
     );
   };
+
+  const toggleDoc = (id: string) =>
+    setActiveDocIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   const handleExport = () => {
     if (messages.length === 0) return;
@@ -180,6 +276,7 @@ export default function Home() {
 
   const handleDeleteDocument = async (id: string) => {
     setDocuments((docs) => docs.filter((d) => d.id !== id));
+    setActiveDocIds((ids) => ids.filter((x) => x !== id));
     await fetch(`/api/documents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     refreshDocs();
   };
@@ -214,6 +311,8 @@ export default function Home() {
     refreshConversations();
   };
 
+  if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
+
   return (
     <div className="flex h-dvh w-full overflow-hidden">
       <Sidebar
@@ -234,12 +333,24 @@ export default function Home() {
         setWebOn={setWebOn}
         rerankOn={rerankOn}
         setRerankOn={setRerankOn}
+        expandOn={expandOn}
+        setExpandOn={setExpandOn}
+        smartRoute={smartRoute}
+        setSmartRoute={setSmartRoute}
+        toolsOn={toolsOn}
+        setToolsOn={setToolsOn}
         guardOn={guardOn}
         setGuardOn={setGuardOn}
         topK={topK}
         setTopK={setTopK}
+        activeDocIds={activeDocIds}
+        onToggleDoc={toggleDoc}
         onExport={handleExport}
         canExport={messages.length > 0}
+        onLockNow={() => {
+          lockNow();
+          setLocked(true);
+        }}
         ollamaOnline={ollamaOnline}
       />
 

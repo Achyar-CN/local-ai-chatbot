@@ -35,6 +35,7 @@ skills-lock.json
 /.data/
 /.lancedb/
 /uploads/
+/tessdata/
 *.lance
 
 # =====================================================================

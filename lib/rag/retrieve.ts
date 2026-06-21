@@ -1,30 +1,50 @@
 import { embedQuery } from "./embeddings";
-import { searchChunks } from "./vectorstore";
-import { listDocuments } from "./vectorstore";
+import { searchChunks, listDocuments, type RetrievedChunk } from "./vectorstore";
 import { rerank } from "./rerank";
+import { expandQuery } from "./expand";
 import { config } from "../config";
 import type { Source } from "../types";
 import type { WebResult } from "../websearch";
 
 export type { Source };
 
-/** Retrieve doc chunks for a query, optionally hybrid-reranked. n is assigned later. */
+export interface RetrieveOptions {
+  useRerank?: boolean;
+  expand?: boolean;
+  docIds?: string[];
+}
+
+/**
+ * Retrieve doc chunks for a query. Optionally expands the query into variants
+ * (multi-query), scopes to selected documents, and hybrid-reranks. n is assigned later.
+ */
 export async function retrieve(
   query: string,
   k = config.topK,
-  useRerank = true,
+  opts: RetrieveOptions = {},
 ): Promise<Source[]> {
-  const vector = await embedQuery(query);
-  // Over-fetch when reranking so the lexical pass has candidates to promote.
+  const { useRerank = true, expand = false, docIds } = opts;
+  const queries = expand ? await expandQuery(query) : [query];
   const fetchK = useRerank ? Math.min(k * 5, 40) : k;
-  let hits = await searchChunks(vector, fetchK);
-  if (useRerank) hits = rerank(query, hits, k);
-  else hits = hits.slice(0, k);
+
+  // Run each query, merge candidates by chunk id keeping the best score.
+  const merged = new Map<string, RetrievedChunk>();
+  for (const q of queries) {
+    const vector = await embedQuery(q);
+    const hits = await searchChunks(vector, fetchK, docIds);
+    for (const h of hits) {
+      const prev = merged.get(h.id);
+      if (!prev || h.score > prev.score) merged.set(h.id, h);
+    }
+  }
+
+  let candidates = [...merged.values()].sort((a, b) => b.score - a.score);
+  candidates = useRerank ? rerank(query, candidates, k) : candidates.slice(0, k);
 
   const docs = await listDocuments();
   const extById = new Map(docs.map((d) => [d.id, d.ext]));
 
-  return hits.map((h) => ({
+  return candidates.map((h) => ({
     n: 0,
     kind: "doc" as const,
     docName: h.docName,

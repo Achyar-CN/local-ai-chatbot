@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useEffect, type FormEvent } from "react";
-import { ArrowUp, Square } from "lucide-react";
+import { useRef, useEffect, useState, type FormEvent } from "react";
+import { ArrowUp, Square, Mic } from "lucide-react";
 import { Button } from "./ui/button";
+import { useDictation, speechInputSupported } from "@/lib/voice";
 import { cn } from "@/lib/utils";
 
 interface ComposerProps {
@@ -16,6 +17,11 @@ interface ComposerProps {
 
 export function Composer({ value, onChange, onSubmit, onStop, busy, ragOn }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [micOk, setMicOk] = useState(false);
+  useEffect(() => setMicOk(speechInputSupported()), []);
+  const { listening, start, stop } = useDictation((text) =>
+    onChange(value ? `${value} ${text}` : text),
+  );
 
   useEffect(() => {
     const el = ref.current;
@@ -52,6 +58,18 @@ export function Composer({ value, onChange, onSubmit, onStop, busy, ragOn }: Com
           placeholder={ragOn ? "Ask anything about your documents…" : "Send a message…"}
           className="max-h-[200px] flex-1 resize-none self-center bg-transparent py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-faint"
         />
+        {micOk && !busy && (
+          <Button
+            type="button"
+            variant={listening ? "primary" : "soft"}
+            size="icon"
+            onClick={() => (listening ? stop() : start())}
+            aria-label={listening ? "Stop dictation" : "Dictate"}
+            className={cn(listening && "pulse-ring")}
+          >
+            <Mic className="h-4 w-4" />
+          </Button>
+        )}
         {busy ? (
           <Button type="button" variant="soft" size="icon" onClick={onStop} aria-label="Stop">
             <Square className="h-4 w-4 fill-current" />

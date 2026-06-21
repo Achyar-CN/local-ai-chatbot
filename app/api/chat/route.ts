@@ -3,6 +3,7 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  stepCountIs,
   type UIMessage,
 } from "ai";
 import { ollama } from "@/lib/ollama";
@@ -14,11 +15,14 @@ import {
   type Source,
 } from "@/lib/rag/retrieve";
 import { webSearch } from "@/lib/websearch";
+import { routeQuery } from "@/lib/router";
+import { chatTools } from "@/lib/tools";
+import { trimHistory } from "@/lib/history";
 import { moderate, refusalMessage, type GuardResult } from "@/lib/guardrail";
 import { config, CHAT_MODELS } from "@/lib/config";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 function lastUserText(messages: UIMessage[]): string {
   const last = [...messages].reverse().find((m) => m.role === "user");
@@ -36,17 +40,27 @@ export async function POST(req: Request) {
     useRag = true,
     web = false,
     rerank = true,
+    expand = true,
+    smartRoute = true,
+    tools = false,
     guard = false,
     model,
     topK,
+    docIds,
+    hasDocs = false,
   } = (await req.json()) as {
     messages: UIMessage[];
     useRag?: boolean;
     web?: boolean;
     rerank?: boolean;
+    expand?: boolean;
+    smartRoute?: boolean;
+    tools?: boolean;
     guard?: boolean;
     model?: string;
     topK?: number;
+    docIds?: string[];
+    hasDocs?: boolean;
   };
 
   const chatModel = CHAT_MODELS.some((m) => m.id === model) ? model! : config.chatModel;
@@ -79,18 +93,29 @@ export async function POST(req: Request) {
     }
   }
 
-  // --- Retrieval (docs + web, run in parallel) ----------------------------
+  // --- Router: decide which enabled sources this query actually needs ------
+  let useDocsNow = useRag;
+  let useWebNow = web;
+  if (query && smartRoute && (useRag || web)) {
+    const decision = await routeQuery(query, { hasDocs, ragOn: useRag, webOn: web });
+    useDocsNow = decision.useDocs;
+    useWebNow = decision.useWeb;
+  } else {
+    useDocsNow = useRag && hasDocs;
+  }
+
+  // --- Retrieval (docs + web in parallel) ---------------------------------
   let docSources: Source[] = [];
   let webSources: Source[] = [];
-  if (query && (useRag || web)) {
+  if (query && (useDocsNow || useWebNow)) {
     const [docs, webs] = await Promise.all([
-      useRag
-        ? retrieve(query, k, rerank).catch((err) => {
+      useDocsNow
+        ? retrieve(query, k, { useRerank: rerank, expand, docIds }).catch((err) => {
             console.error("RAG retrieval failed:", err);
             return [] as Source[];
           })
         : Promise.resolve([] as Source[]),
-      web
+      useWebNow
         ? webSearch(query)
             .then(webToSources)
             .catch((err) => {
@@ -104,11 +129,11 @@ export async function POST(req: Request) {
   }
 
   const sources = numberSources(docSources, webSources);
-  const grounded = useRag || web;
+  const grounded = sources.length > 0;
 
   const system = grounded
     ? buildSystemPrompt(sources)
-    : "Kamu adalah asisten AI lokal yang membantu, akurat, dan ramah. Jawab dengan jelas dalam bahasa yang sama dengan pengguna. Write naturally; do not use em-dashes (—) or arrows (->).";
+    : "You are a helpful, accurate local AI assistant. Answer clearly in the user's language. Write naturally; do not use em-dashes or arrows.";
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
@@ -118,14 +143,15 @@ export async function POST(req: Request) {
       const result = streamText({
         model: ollama(chatModel),
         system,
-        messages: await convertToModelMessages(messages),
+        messages: await convertToModelMessages(trimHistory(messages)),
         temperature: 0.4,
+        ...(tools ? { tools: chatTools, stopWhen: stepCountIs(4) } : {}),
       });
       writer.merge(result.toUIMessageStream());
     },
     onError: (error) => {
       console.error("Chat stream error:", error);
-      return "Gagal menghubungi model. Pastikan Ollama berjalan (`ollama serve`).";
+      return "Could not reach the model. Make sure Ollama is running (ollama serve).";
     },
   });
 

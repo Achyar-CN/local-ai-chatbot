@@ -11,6 +11,13 @@ const MIME_BY_EXT: Record<string, string> = {
   csv: "text/csv; charset=utf-8",
   json: "application/json; charset=utf-8",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  tiff: "image/tiff",
 };
 
 export async function GET(_req: Request, { params }: { params: Promise<{ docId: string }> }) {
