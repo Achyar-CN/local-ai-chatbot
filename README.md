@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Local AI Chatbot · RAG
 
-## Getting Started
+Chatbot AI yang berjalan **100% lokal** di laptop Anda — chat streaming + tanya-jawab
+atas dokumen sendiri (RAG), tanpa mengirim data ke cloud.
 
-First, run the development server:
+![stack](https://img.shields.io/badge/Next.js-16-black) ![ai](https://img.shields.io/badge/AI%20SDK-6-22c55e) ![ollama](https://img.shields.io/badge/Ollama-CPU-blue)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Lapisan | Teknologi |
+|---|---|
+| LLM runtime | **Ollama** (CPU) — `qwen2.5:7b-instruct` + `nomic-embed-text` |
+| App | **Next.js 16** (App Router, TypeScript) |
+| AI/streaming | **Vercel AI SDK 6** + `ollama-ai-provider-v2` |
+| Vector store | **LanceDB** embedded (file lokal `./.lancedb`) |
+| UI | Tailwind v4, dark OLED, Inter, streaming bubbles + sitasi |
+| Parsing | `pdf-parse` (PDF), `mammoth` (DOCX), teks/markdown |
+| Guardrail | **Llama Guard 3 (1B)** + pre-filter rule-based (toggle on/off) |
+| Riwayat | Persistensi percakapan lokal (JSON di `./.data`) |
+
+## Fitur
+
+- **Chat streaming** token-by-token via Ollama (CPU).
+- **RAG**: upload PDF/DOCX/TXT/MD → jawaban dirujuk ke sumber dengan penanda `[n]`.
+- **Guardrail keamanan** (bisa di-on/off): moderasi input dengan Llama Guard 3 +
+  pre-filter regex. Permintaan tidak aman diblokir sebelum dikirim ke model.
+- **Riwayat percakapan**: otomatis tersimpan, bisa dibuka/hapus dari sidebar (tab Riwayat).
+- **Pengaturan**: pilih model (7B/3B), atur top-k retrieval, toggle RAG & guardrail.
+
+## Arsitektur
+
+```
+Ingest:  file → parse (pdf/docx/txt) → chunk → embed (nomic) → LanceDB
+Query:   pesan → embed query → top-k LanceDB → context → LLM (stream) → jawaban + sitasi
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prasyarat
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Node.js 20+**
+- **Ollama** terpasang & berjalan, dengan model:
+  ```bash
+  ollama pull qwen2.5:7b-instruct
+  ollama pull nomic-embed-text
+  ollama pull llama-guard3:1b
+  ```
+  Opsional (mode cepat): `ollama pull llama3.2:3b`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+  > Tanpa `llama-guard3:1b`, guardrail otomatis fallback ke pre-filter rule-based saja.
 
-## Learn More
+## Menjalankan
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
+Buka http://localhost:3000
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Unggah dokumen (PDF/DOCX/TXT/MD) lewat sidebar kiri.
+2. Pastikan **Mode dokumen (RAG)** aktif.
+3. Tanyakan apa saja — jawaban dirujuk ke sumber (lihat "sumber dirujuk").
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Konfigurasi
 
-## Deploy on Vercel
+Edit [.env.local](.env.local):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Variabel | Default | Keterangan |
+|---|---|---|
+| `CHAT_MODEL` | `qwen2.5:7b-instruct` | Model chat utama |
+| `CHAT_MODEL_FAST` | `llama3.2:3b` | Model cepat (selector UI) |
+| `GUARD_MODEL` | `llama-guard3:1b` | Model moderasi guardrail |
+| `EMBED_MODEL` | `nomic-embed-text` | Model embedding (dim 768) |
+| `RAG_TOP_K` | `4` | Jumlah potongan yang diambil |
+| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `900` / `120` | Ukuran chunk (karakter) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Struktur
+
+```
+app/
+  api/chat      streaming RAG chat (Vercel AI SDK)
+  api/ingest    upload → parse → chunk → embed → simpan
+  api/documents     list / delete dokumen
+  api/conversations list / save / get / delete riwayat chat
+  api/health        cek status Ollama
+  page.tsx          UI utama
+lib/
+  rag/          parse · chunk · embeddings · vectorstore · ingest · retrieve
+  guardrail.ts  moderasi Llama Guard + rule-based
+  store.ts      persistensi percakapan (JSON)
+  ollama.ts     provider Ollama
+  config.ts     konfigurasi terpusat
+components/      Sidebar · Composer · MessageBubble · Sources · Markdown
+```
+
+## Catatan performa
+
+Tanpa GPU NVIDIA, inferensi berjalan di CPU. Pada Intel i7-13620H + 16 GB RAM,
+`qwen2.5:7b` ~8–12 token/dtk. Jika terasa lambat, ganti ke **Llama 3.2 3B** dari
+selector model di sidebar.

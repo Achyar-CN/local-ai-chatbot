@@ -1,6 +1,43 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# =====================================================================
+#  CREDENTIALS & SECRETS — JANGAN PERNAH DI-COMMIT
+# =====================================================================
+.env
+.env.*
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development
+*.env
+secrets.json
+credentials.json
+*.pem
+*.key
+*.crt
+*.p12
 
-# dependencies
+# =====================================================================
+#  CLAUDE / AGENT — semua artefak & instruksi terkait Claude
+# =====================================================================
+.claude/
+claude.log
+CLAUDE.md
+AGENTS.md
+memory.md
+memory/
+.mcp.json
+
+# =====================================================================
+#  DATA LOKAL APLIKASI — riwayat chat & vektor dokumen (bisa sensitif)
+# =====================================================================
+/.data/
+/.lancedb/
+/uploads/
+*.lance
+
+# =====================================================================
+#  NODE.JS / NEXT.JS
+# =====================================================================
 /node_modules
 /.pnp
 .pnp.*
@@ -9,33 +46,62 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
 
-# vercel
+# Testing
+/coverage
+
+# Vercel
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# =====================================================================
+#  PYTHON (skrip pendukung / tooling — opsional)
+#  Catatan: JANGAN gunakan "/lib/" di sini — itu folder source code app.
+# =====================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =====================================================================
+#  DATABASE & BACKUP
+# =====================================================================
+*.db
+*.sqlite
+*.sqlite3
+backups/
+
+# =====================================================================
+#  IDE / EDITOR
+# =====================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# =====================================================================
+#  OS & TEMP
+# =====================================================================
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*~
+logs/

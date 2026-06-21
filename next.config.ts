@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Native / Node-only packages must not be bundled by Turbopack/webpack.
+  serverExternalPackages: ["@lancedb/lancedb", "pdf-parse", "pdfjs-dist"],
 };
 
 export default nextConfig;
