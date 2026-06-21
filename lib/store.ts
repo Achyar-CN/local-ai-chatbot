@@ -43,7 +43,7 @@ function deriveTitle(messages: UIMessage[]): string {
       .map((p) => (p as { text: string }).text)
       .join(" ")
       .trim() ?? "";
-  if (!text) return "Percakapan baru";
+  if (!text) return "New conversation";
   return text.length > 48 ? `${text.slice(0, 48)}…` : text;
 }
 

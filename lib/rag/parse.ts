@@ -23,7 +23,7 @@ export async function parseFile(
     return [{ page: 1, text: buffer.toString("utf8") }];
   }
 
-  throw new Error(`Format tidak didukung: .${ext}. Gunakan PDF, DOCX, TXT, atau MD.`);
+  throw new Error(`Unsupported format: .${ext}. Use PDF, DOCX, TXT, or MD.`);
 }
 
 async function parsePdf(buffer: Buffer): Promise<PageText[]> {

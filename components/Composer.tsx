@@ -34,8 +34,8 @@ export function Composer({ value, onChange, onSubmit, onStop, busy, ragOn }: Com
     <form onSubmit={submit} className="relative">
       <div
         className={cn(
-          "flex items-end gap-2 rounded-2xl border bg-surface p-2 pl-4 transition-colors",
-          "border-border focus-within:border-accent/50",
+          "flex items-end gap-2 rounded-[1.25rem] border bg-surface/80 p-2 pl-4 backdrop-blur",
+          "press border-border focus-within:border-accent/60 focus-within:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-accent)_12%,transparent)]",
         )}
       >
         <textarea
@@ -49,13 +49,11 @@ export function Composer({ value, onChange, onSubmit, onStop, busy, ragOn }: Com
             }
           }}
           rows={1}
-          placeholder={
-            ragOn ? "Tanya apa saja tentang dokumen Anda…" : "Tulis pesan…"
-          }
+          placeholder={ragOn ? "Ask anything about your documents…" : "Send a message…"}
           className="max-h-[200px] flex-1 resize-none self-center bg-transparent py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-faint"
         />
         {busy ? (
-          <Button type="button" variant="soft" size="icon" onClick={onStop} aria-label="Hentikan">
+          <Button type="button" variant="soft" size="icon" onClick={onStop} aria-label="Stop">
             <Square className="h-4 w-4 fill-current" />
           </Button>
         ) : (
@@ -64,16 +62,27 @@ export function Composer({ value, onChange, onSubmit, onStop, busy, ragOn }: Com
             variant="primary"
             size="icon"
             disabled={!value.trim()}
-            aria-label="Kirim"
+            aria-label="Send"
+            className={cn(value.trim() && "glow-accent")}
           >
             <ArrowUp className="h-4 w-4" />
           </Button>
         )}
       </div>
-      <p className="mt-2 px-1 text-center text-[11px] text-faint">
-        {ragOn ? "Mode dokumen aktif — jawaban dirujuk dari file Anda." : "Mode chat biasa."}{" "}
-        Enter kirim · Shift+Enter baris baru
+      <p className="mt-2 flex items-center justify-center gap-1.5 px-1 text-center text-[11px] text-faint">
+        <Kbd>Enter</Kbd> to send
+        <span className="text-border">·</span>
+        <Kbd>Shift</Kbd>
+        <Kbd>Enter</Kbd> for new line
       </p>
     </form>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded border border-border bg-elevated px-1.5 py-px font-mono text-[10px] text-muted">
+      {children}
+    </kbd>
   );
 }

@@ -108,7 +108,7 @@ export async function POST(req: Request) {
 
   const system = grounded
     ? buildSystemPrompt(sources)
-    : "Kamu adalah asisten AI lokal yang membantu, akurat, dan ramah. Jawab dengan jelas dalam bahasa yang sama dengan pengguna.";
+    : "Kamu adalah asisten AI lokal yang membantu, akurat, dan ramah. Jawab dengan jelas dalam bahasa yang sama dengan pengguna. Write naturally; do not use em-dashes (—) or arrows (->).";
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {

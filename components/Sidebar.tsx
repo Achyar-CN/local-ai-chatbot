@@ -8,33 +8,30 @@ import {
   Plus,
   Loader2,
   Database,
-  Sparkles,
   Circle,
   ShieldCheck,
   MessageSquare,
-  Files,
+  Library,
   Globe,
   ListFilter,
   Download,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { Brandmark, Wordmark } from "./Brandmark";
 import { CHAT_MODELS } from "@/lib/config";
 import type { DocumentMeta, ConversationMeta } from "@/lib/types";
 import { cn, formatBytes } from "@/lib/utils";
 
 interface SidebarProps {
-  // conversations
   conversations: ConversationMeta[];
   currentId: string;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onNewChat: () => void;
-  // documents
   documents: DocumentMeta[];
   uploading: boolean;
   onUpload: (files: FileList | File[]) => void;
   onDeleteDocument: (id: string) => void;
-  // settings
   model: string;
   setModel: (m: string) => void;
   ragOn: boolean;
@@ -68,35 +65,37 @@ export function Sidebar(props: SidebarProps) {
     }
   };
 
+  const chunkCount = props.documents.reduce((s, d) => s + d.chunks, 0);
+
   return (
-    <aside className="flex h-full w-[320px] shrink-0 flex-col border-r border-border bg-surface/60 backdrop-blur-sm">
+    <aside className="flex h-full w-[324px] shrink-0 flex-col border-r border-border bg-surface/50 backdrop-blur-sm">
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-4 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-fg shadow-[0_8px_24px_-8px_rgba(34,197,94,0.6)]">
-          <Sparkles className="h-5 w-5" />
+      <div className="flex items-center gap-3 px-4 pb-3 pt-5">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-accent text-accent-fg glow-accent">
+          <Brandmark className="h-6 w-6" />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold leading-tight">Local AI Chat</h1>
-          <p className="truncate text-xs text-muted">RAG · 100% offline</p>
+          <Wordmark className="block text-[15px] font-semibold leading-tight" />
+          <p className="label-mono mt-0.5">Local knowledge engine</p>
         </div>
       </div>
 
-      <div className="px-3">
-        <Button variant="primary" className="w-full" onClick={props.onNewChat}>
-          <Plus className="h-4 w-4" /> Chat baru
+      <div className="px-3 pt-1">
+        <Button variant="primary" className="press w-full" onClick={props.onNewChat}>
+          <Plus className="h-4 w-4" /> New chat
         </Button>
       </div>
 
       {/* Tabs */}
-      <div className="mt-3 px-3">
-        <div className="flex rounded-lg border border-border bg-bg/40 p-1 text-xs font-medium">
+      <div className="mt-4 px-3">
+        <div className="flex rounded-xl border border-border bg-bg/50 p-1 text-xs font-medium">
           <TabButton active={tab === "chats"} onClick={() => setTab("chats")}>
-            <MessageSquare className="h-3.5 w-3.5" /> Riwayat
+            <MessageSquare className="h-3.5 w-3.5" /> History
           </TabButton>
           <TabButton active={tab === "docs"} onClick={() => setTab("docs")}>
-            <Files className="h-3.5 w-3.5" /> Dokumen
+            <Library className="h-3.5 w-3.5" /> Library
             {props.documents.length > 0 && (
-              <span className="ml-0.5 rounded bg-accent-soft px-1 text-[10px] text-accent">
+              <span className="ml-0.5 rounded bg-accent-soft px-1 font-mono text-[10px] text-accent">
                 {props.documents.length}
               </span>
             )}
@@ -121,37 +120,33 @@ export function Sidebar(props: SidebarProps) {
 
       {/* Settings */}
       <div className="space-y-3 border-t border-border p-3">
+        <p className="label-mono px-1">Retrieval</p>
         <Toggle
-          label="Mode dokumen (RAG)"
+          label="Documents (RAG)"
           icon={<Database className="h-3.5 w-3.5 text-muted" />}
           checked={props.ragOn}
           onChange={props.setRagOn}
         />
         <Toggle
-          label="Pencarian web"
+          label="Web search"
           icon={<Globe className="h-3.5 w-3.5 text-muted" />}
           checked={props.webOn}
           onChange={props.setWebOn}
         />
-        <Toggle
-          label="Guardrail keamanan"
-          icon={<ShieldCheck className="h-3.5 w-3.5 text-muted" />}
-          checked={props.guardOn}
-          onChange={props.setGuardOn}
-        />
-
         {props.ragOn && (
           <>
             <Toggle
-              label="Rerank hybrid (akurasi)"
+              label="Hybrid rerank"
               icon={<ListFilter className="h-3.5 w-3.5 text-muted" />}
               checked={props.rerankOn}
               onChange={props.setRerankOn}
             />
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="font-medium text-muted">Potongan diambil (top-k)</span>
-                <span className="tabular-nums text-foreground">{props.topK}</span>
+            <div className="pt-0.5">
+              <div className="mb-1.5 flex items-center justify-between text-xs">
+                <span className="font-medium text-muted">Chunks retrieved</span>
+                <span className="rounded bg-elevated px-1.5 font-mono text-[11px] tabular-nums text-accent">
+                  {props.topK}
+                </span>
               </div>
               <input
                 type="range"
@@ -166,30 +161,36 @@ export function Sidebar(props: SidebarProps) {
           </>
         )}
 
-        <button
-          onClick={props.onExport}
-          disabled={!props.canExport}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-elevated py-2 text-xs font-medium text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 enabled:cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5" /> Export chat (.md)
-        </button>
-
-        <div>
-          <label className="mb-1 block text-xs font-medium text-muted">Model</label>
+        <p className="label-mono px-1 pt-1.5">Engine</p>
+        <Toggle
+          label="Safety guardrail"
+          icon={<ShieldCheck className="h-3.5 w-3.5 text-muted" />}
+          checked={props.guardOn}
+          onChange={props.setGuardOn}
+        />
+        <div className="relative">
           <select
             value={props.model}
             onChange={(e) => props.setModel(e.target.value)}
-            className="w-full cursor-pointer rounded-lg border border-border bg-elevated px-2.5 py-2 text-xs text-foreground outline-none focus:border-accent/50"
+            className="press w-full cursor-pointer appearance-none rounded-lg border border-border bg-elevated px-2.5 py-2 text-xs text-foreground outline-none focus:border-accent/50"
           >
             {CHAT_MODELS.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.label} — {m.hint}
+                {m.label} · {m.hint}
               </option>
             ))}
           </select>
         </div>
 
-        <div className="flex items-center justify-between px-1 text-[11px] text-faint">
+        <button
+          onClick={props.onExport}
+          disabled={!props.canExport}
+          className="press flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-elevated py-2 text-xs font-medium text-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 enabled:cursor-pointer"
+        >
+          <Download className="h-3.5 w-3.5" /> Export chat
+        </button>
+
+        <div className="flex items-center justify-between px-1 pt-0.5 font-mono text-[10px] uppercase tracking-wider text-faint">
           <span className="flex items-center gap-1.5">
             <Circle
               className={cn(
@@ -197,13 +198,13 @@ export function Sidebar(props: SidebarProps) {
                 props.ollamaOnline === null
                   ? "text-faint"
                   : props.ollamaOnline
-                    ? "text-accent"
+                    ? "text-accent pulse-ring rounded-full"
                     : "text-destructive",
               )}
             />
             Ollama {props.ollamaOnline === false ? "offline" : "online"}
           </span>
-          <span>{props.documents.reduce((s, d) => s + d.chunks, 0)} potongan</span>
+          <span>{chunkCount} chunks</span>
         </div>
       </div>
     </aside>
@@ -223,8 +224,8 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer",
-        active ? "bg-elevated text-foreground" : "text-muted hover:text-foreground",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 transition-colors cursor-pointer",
+        active ? "bg-elevated text-foreground shadow-sm" : "text-muted hover:text-foreground",
       )}
     >
       {children}
@@ -235,46 +236,49 @@ function TabButton({
 function ConversationList(props: SidebarProps) {
   if (props.conversations.length === 0) {
     return (
-      <div className="px-1 py-6 text-center text-xs text-faint">
-        Belum ada percakapan.
+      <div className="px-2 py-8 text-center text-xs leading-relaxed text-faint">
+        No conversations yet.
         <br />
-        Mulai chat, otomatis tersimpan.
+        Start chatting and they save automatically.
       </div>
     );
   }
   return (
-    <ul className="space-y-1">
-      {props.conversations.map((c) => (
-        <li
-          key={c.id}
-          className={cn(
-            "group flex items-center gap-2 rounded-lg px-2.5 py-2 transition-colors cursor-pointer",
-            c.id === props.currentId ? "bg-accent-soft/60" : "hover:bg-white/[0.03]",
-          )}
-          onClick={() => props.onSelectConversation(c.id)}
-        >
-          <MessageSquare
+    <ul className="space-y-0.5">
+      {props.conversations.map((c) => {
+        const active = c.id === props.currentId;
+        return (
+          <li
+            key={c.id}
             className={cn(
-              "h-4 w-4 shrink-0",
-              c.id === props.currentId ? "text-accent" : "text-faint",
+              "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors cursor-pointer",
+              active ? "bg-accent-soft/50" : "hover:bg-foreground/[0.03]",
             )}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{c.title}</p>
-            <p className="text-[11px] text-faint">{c.messageCount} pesan</p>
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onDeleteConversation(c.id);
-            }}
-            aria-label="Hapus percakapan"
-            className="shrink-0 rounded-md p-1 text-faint opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer"
+            onClick={() => props.onSelectConversation(c.id)}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </li>
-      ))}
+            {active && (
+              <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent" />
+            )}
+            <MessageSquare
+              className={cn("h-4 w-4 shrink-0", active ? "text-accent" : "text-faint")}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-foreground">{c.title}</p>
+              <p className="font-mono text-[10px] text-faint">{c.messageCount} messages</p>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onDeleteConversation(c.id);
+              }}
+              aria-label="Delete conversation"
+              className="shrink-0 rounded-md p-1 text-faint opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -299,22 +303,29 @@ function DocsPanel(
         onDrop={props.handleDrop}
         disabled={props.uploading}
         className={cn(
-          "flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed px-3 py-5 text-center transition-colors cursor-pointer",
+          "flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed px-3 py-6 text-center transition-colors cursor-pointer",
           props.dragging
-            ? "border-accent bg-accent-soft/50"
-            : "border-border hover:border-accent/50 hover:bg-white/[0.02]",
+            ? "border-accent bg-accent-soft/40"
+            : "border-border hover:border-accent/50 hover:bg-foreground/[0.02]",
           props.uploading && "pointer-events-none opacity-60",
         )}
       >
-        {props.uploading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-accent" />
-        ) : (
-          <Upload className="h-5 w-5 text-muted" />
-        )}
-        <span className="text-xs font-medium">
-          {props.uploading ? "Memproses…" : "Tarik file atau klik"}
+        <span
+          className={cn(
+            "grid h-9 w-9 place-items-center rounded-xl transition-colors",
+            props.dragging ? "bg-accent text-accent-fg" : "bg-elevated text-muted",
+          )}
+        >
+          {props.uploading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Upload className="h-4 w-4" />
+          )}
         </span>
-        <span className="text-[11px] text-faint">PDF · DOCX · TXT · MD</span>
+        <span className="text-xs font-medium text-foreground">
+          {props.uploading ? "Indexing…" : "Drop files or click to upload"}
+        </span>
+        <span className="label-mono">PDF · DOCX · TXT · MD</span>
       </button>
       <input
         ref={props.inputRef}
@@ -329,24 +340,28 @@ function DocsPanel(
       />
 
       {props.documents.length === 0 ? (
-        <div className="px-1 py-6 text-center text-xs text-faint">Belum ada dokumen.</div>
+        <div className="px-2 py-8 text-center text-xs text-faint">
+          Your library is empty.
+        </div>
       ) : (
-        <ul className="mt-3 space-y-1">
+        <ul className="mt-3 space-y-0.5">
           {props.documents.map((doc) => (
             <li
               key={doc.id}
-              className="group flex items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.03]"
+              className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-foreground/[0.03]"
             >
-              <FileText className="h-4 w-4 shrink-0 text-accent" />
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent-soft/60 text-accent">
+                <FileText className="h-3.5 w-3.5" />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium">{doc.name}</p>
-                <p className="text-[11px] text-faint">
-                  {doc.chunks} potongan · {formatBytes(doc.size)}
+                <p className="truncate text-xs font-medium text-foreground">{doc.name}</p>
+                <p className="font-mono text-[10px] text-faint">
+                  {doc.chunks} chunks · {formatBytes(doc.size)}
                 </p>
               </div>
               <button
                 onClick={() => props.onDeleteDocument(doc.id)}
-                aria-label={`Hapus ${doc.name}`}
+                aria-label={`Delete ${doc.name}`}
                 className="shrink-0 rounded-md p-1 text-faint opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -371,8 +386,8 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between">
-      <span className="flex items-center gap-2 text-xs font-medium">
+    <label className="flex cursor-pointer items-center justify-between">
+      <span className="flex items-center gap-2 text-xs font-medium text-foreground">
         {icon} {label}
       </span>
       <button
@@ -381,14 +396,14 @@ function Toggle({
         aria-label={label}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative h-5 w-9 rounded-full transition-colors cursor-pointer",
+          "inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors cursor-pointer",
           checked ? "bg-accent" : "bg-elevated",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
-            checked ? "translate-x-[18px]" : "translate-x-0.5",
+            "h-4 w-4 rounded-full bg-white shadow transition-transform duration-200",
+            checked ? "translate-x-4" : "translate-x-0",
           )}
         />
       </button>

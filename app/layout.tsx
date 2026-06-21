@@ -15,15 +15,15 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Local AI Chatbot · RAG",
-  description: "Asisten AI lokal dengan RAG — berjalan 100% di laptop Anda via Ollama.",
+  title: "Atlas",
+  description: "A private, offline AI assistant with RAG. Runs entirely on your machine via Ollama.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" className={`${inter.variable} ${mono.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} ${mono.variable} h-full`}>
       <body className="app-bg min-h-full antialiased">{children}</body>
     </html>
   );

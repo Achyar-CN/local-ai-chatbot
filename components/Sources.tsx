@@ -23,7 +23,7 @@ export function Sources({
         aria-expanded={open}
       >
         <FileText className="h-3.5 w-3.5 text-accent" />
-        {sources.length} sumber dirujuk
+        {sources.length} {sources.length === 1 ? "source" : "sources"} cited
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
       </button>
 
@@ -58,7 +58,7 @@ export function Sources({
                     </span>
                   </div>
                   <p className="line-clamp-2 leading-relaxed text-muted">
-                    {isWeb && s.url ? `${new URL(s.url).hostname} — ` : ""}
+                    {isWeb && s.url ? `${new URL(s.url).hostname} · ` : ""}
                     {s.text}
                   </p>
                 </button>

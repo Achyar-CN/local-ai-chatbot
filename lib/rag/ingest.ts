@@ -19,7 +19,7 @@ export async function ingestFile(
   const pages = await parseFile(buffer, filename, mime);
   const chunks = chunkPages(pages);
   if (chunks.length === 0) {
-    throw new Error("Tidak ada teks yang bisa diekstrak dari dokumen ini.");
+    throw new Error("No extractable text found in this document.");
   }
 
   const vectors = await embedDocuments(chunks.map((c) => c.text));

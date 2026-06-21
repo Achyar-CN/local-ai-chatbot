@@ -10,34 +10,34 @@ export interface GuardResult {
 
 /** Llama Guard 3 hazard taxonomy (S-codes -> human label). */
 const LLAMA_GUARD_CATEGORIES: Record<string, string> = {
-  S1: "Kejahatan dengan kekerasan",
-  S2: "Kejahatan tanpa kekerasan",
-  S3: "Kejahatan seksual",
-  S4: "Eksploitasi seksual anak",
-  S5: "Pencemaran nama baik",
-  S6: "Nasihat khusus (medis/hukum/finansial)",
-  S7: "Privasi",
-  S8: "Kekayaan intelektual",
-  S9: "Senjata pemusnah massal",
-  S10: "Ujaran kebencian",
-  S11: "Bunuh diri & melukai diri",
-  S12: "Konten seksual",
-  S13: "Pemilu",
-  S14: "Penyalahgunaan interpreter kode",
+  S1: "Violent crimes",
+  S2: "Non-violent crimes",
+  S3: "Sex crimes",
+  S4: "Child exploitation",
+  S5: "Defamation",
+  S6: "Specialized advice",
+  S7: "Privacy",
+  S8: "Intellectual property",
+  S9: "Indiscriminate weapons",
+  S10: "Hate",
+  S11: "Self-harm",
+  S12: "Sexual content",
+  S13: "Elections",
+  S14: "Code interpreter abuse",
 };
 
 /** Cheap regex pre-filter for the most blatant cases (runs before the model). */
 const RULE_PATTERNS: { label: string; re: RegExp }[] = [
   {
-    label: "Bunuh diri & melukai diri",
+    label: "Self-harm",
     re: /\b(cara\s+(bunuh diri|mengakhiri hidup)|how to (kill myself|commit suicide)|end my life)\b/i,
   },
   {
-    label: "Senjata/bahan peledak",
+    label: "Weapons and explosives",
     re: /\b(cara\s+(membuat|merakit)\s+(bom|peledak)|how to (make|build) a (bomb|explosive)|build a (gun|firearm) at home)\b/i,
   },
   {
-    label: "Peretasan berbahaya",
+    label: "Malicious hacking",
     re: /\b(ransomware|keylogger|botnet|carding|how to hack (into|someone'?s)|curi(?:lah)? (kartu kredit|password))\b/i,
   },
 ];
@@ -51,14 +51,21 @@ function ruleCheck(text: string): GuardResult | null {
 
 let guardModelAvailable: boolean | null = null;
 
+const BLOCKING = new Set(config.guardBlock);
+
 function parseGuard(output: string): GuardResult {
   const lines = output.trim().toLowerCase().split(/\s+/);
   if (lines[0]?.startsWith("safe")) {
     return { safe: true, categories: [], via: "llama-guard" };
   }
-  const codes = output.toUpperCase().match(/S\d{1,2}/g) ?? [];
-  const categories = [...new Set(codes)].map((c) => LLAMA_GUARD_CATEGORIES[c] ?? c);
-  return { safe: false, categories: categories.length ? categories : ["Konten tidak aman"], via: "llama-guard" };
+  const codes = [...new Set(output.toUpperCase().match(/S\d{1,2}/g) ?? [])];
+  // Only block on serious categories; ignore over-broad ones (advice, privacy, IP…).
+  const blocking = codes.filter((c) => BLOCKING.has(c));
+  if (blocking.length === 0) {
+    return { safe: true, categories: [], via: "llama-guard" };
+  }
+  const categories = blocking.map((c) => LLAMA_GUARD_CATEGORIES[c] ?? c);
+  return { safe: false, categories, via: "llama-guard" };
 }
 
 /**
@@ -95,8 +102,8 @@ export async function moderate(text: string, role: "user" | "assistant"): Promis
 export function refusalMessage(result: GuardResult): string {
   const cats = result.categories.length ? ` (${result.categories.join(", ")})` : "";
   return [
-    `Maaf, permintaan ini tidak dapat saya proses karena melanggar kebijakan keamanan${cats}.`,
+    `I can't help with this request because it goes against the safety policy${cats}.`,
     "",
-    "Saya hanya bisa membantu permintaan yang aman dan sesuai etika. Silakan ajukan pertanyaan lain — misalnya tentang isi dokumen Anda.",
+    "I can only help with safe, appropriate requests. Try asking something else, like a question about your documents.",
   ].join("\n");
 }

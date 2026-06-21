@@ -11,14 +11,14 @@ export async function POST(req: Request) {
     const form = await req.formData();
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
     if (files.length === 0) {
-      return NextResponse.json({ error: "Tidak ada file yang diunggah." }, { status: 400 });
+      return NextResponse.json({ error: "No files were uploaded." }, { status: 400 });
     }
 
     const results = [];
     for (const file of files) {
       if (file.size > MAX_SIZE) {
         return NextResponse.json(
-          { error: `${file.name} terlalu besar (maks 25 MB).` },
+          { error: `${file.name} is too large (max 25 MB).` },
           { status: 400 },
         );
       }
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ documents: results });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Ingest gagal.";
+    const message = err instanceof Error ? err.message : "Ingest failed.";
     console.error("Ingest error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }

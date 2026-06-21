@@ -3,19 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Sparkles, AlertTriangle, X, ShieldCheck } from "lucide-react";
+import { AlertTriangle, X, ShieldCheck, Database, Globe, Sparkle } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { Composer } from "@/components/Composer";
 import { MessageBubble, ThinkingBubble } from "@/components/MessageBubble";
 import { SourceViewer } from "@/components/SourceViewer";
-import { config } from "@/lib/config";
+import { Brandmark } from "@/components/Brandmark";
+import { config, DEFAULT_CHAT_MODEL } from "@/lib/config";
 import type { DocumentMeta, ConversationMeta, Source } from "@/lib/types";
 import type { UIMessage } from "ai";
 
 const SUGGESTIONS = [
-  "Ringkas dokumen yang saya unggah",
-  "Apa poin-poin penting dari file ini?",
-  "Jelaskan konsep utama secara sederhana",
+  "Summarize the documents I uploaded",
+  "What are the key takeaways from this file?",
+  "Explain the core concepts in simple terms",
 ];
 
 function messageText(m: UIMessage): string {
@@ -27,19 +28,19 @@ function messageText(m: UIMessage): string {
 }
 
 function messagesToMarkdown(messages: UIMessage[]): string {
-  const lines = [`# Percakapan — ${new Date().toLocaleString("id-ID")}`, ""];
+  const lines = [`# Conversation`, "", `_${new Date().toLocaleString("en-US")}_`, ""];
   for (const m of messages) {
-    const who = m.role === "user" ? "🧑 Anda" : "🤖 Asisten";
-    lines.push(`## ${who}`, "", messageText(m) || "_(tanpa teks)_", "");
+    const who = m.role === "user" ? "You" : "Atlas";
+    lines.push(`## ${who}`, "", messageText(m) || "_(no text)_", "");
   }
   return lines.join("\n");
 }
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [model, setModel] = useState<string>(config.chatModel);
+  const [model, setModel] = useState<string>(DEFAULT_CHAT_MODEL);
   const [ragOn, setRagOn] = useState(true);
-  const [webOn, setWebOn] = useState(false);
+  const [webOn, setWebOn] = useState(true);
   const [rerankOn, setRerankOn] = useState(true);
   const [guardOn, setGuardOn] = useState(true);
   const [topK, setTopK] = useState<number>(config.topK);
@@ -167,11 +168,11 @@ export default function Home() {
       Array.from(files).forEach((f) => fd.append("files", f));
       const res = await fetch("/api/ingest", { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Upload gagal.");
+      if (!res.ok) throw new Error(data.error ?? "Upload failed.");
       await refreshDocs();
       if (!ragOn) setRagOn(true);
     } catch (e) {
-      setBanner(e instanceof Error ? e.message : "Upload gagal.");
+      setBanner(e instanceof Error ? e.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -202,7 +203,7 @@ export default function Home() {
         savedRef.current = `${id}:${data.conversation.messages?.length ?? 0}`;
       }
     } catch {
-      setBanner("Gagal memuat percakapan.");
+      setBanner("Couldn't load that conversation.");
     }
   };
 
@@ -243,15 +244,23 @@ export default function Home() {
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          title={
+            conversations.find((c) => c.id === convId)?.title ??
+            (messages.length > 0 ? "Conversation" : "New conversation")
+          }
+          ragOn={ragOn}
+          webOn={webOn}
+          guardOn={guardOn}
+        />
         {ollamaOnline === false && (
           <Banner tone="warn">
-            Ollama tidak terdeteksi. Jalankan <code className="font-mono">ollama serve</code> lalu
-            muat ulang.
+            Ollama not detected. Run <code className="font-mono">ollama serve</code>, then reload.
           </Banner>
         )}
         {(banner || error) && (
           <Banner tone="error" onClose={() => setBanner(null)}>
-            {banner ?? "Terjadi kesalahan saat menghubungi model."}
+            {banner ?? "Something went wrong reaching the model."}
           </Banner>
         )}
 
@@ -307,11 +316,43 @@ function Banner({
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
       <span className="flex-1">{children}</span>
       {onClose && (
-        <button onClick={onClose} className="cursor-pointer hover:opacity-70" aria-label="Tutup">
+        <button onClick={onClose} className="cursor-pointer hover:opacity-70" aria-label="Dismiss">
           <X className="h-3.5 w-3.5" />
         </button>
       )}
     </div>
+  );
+}
+
+function TopBar({
+  title,
+  ragOn,
+  webOn,
+  guardOn,
+}: {
+  title: string;
+  ragOn: boolean;
+  webOn: boolean;
+  guardOn: boolean;
+}) {
+  return (
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-5">
+      <h2 className="min-w-0 truncate text-sm font-medium text-foreground">{title}</h2>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {ragOn && <ModeChip icon={<Database className="h-3 w-3" />}>RAG</ModeChip>}
+        {webOn && <ModeChip icon={<Globe className="h-3 w-3" />}>Web</ModeChip>}
+        {guardOn && <ModeChip icon={<ShieldCheck className="h-3 w-3" />}>Guard</ModeChip>}
+      </div>
+    </header>
+  );
+}
+
+function ModeChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1 rounded-full border border-accent/25 bg-accent-soft/40 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-accent">
+      {icon}
+      {children}
+    </span>
   );
 }
 
@@ -325,33 +366,42 @@ function EmptyState({
   guardOn: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-[0_12px_40px_-12px_rgba(34,197,94,0.7)]">
-        <Sparkles className="h-7 w-7" />
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="relative mb-6">
+        <div className="absolute inset-0 -z-10 rounded-full bg-accent/20 blur-2xl" />
+        <div className="grid h-16 w-16 place-items-center rounded-[1.4rem] bg-accent text-accent-fg glow-accent">
+          <Brandmark className="h-9 w-9" />
+        </div>
       </div>
-      <h2 className="text-2xl font-semibold tracking-tight">Asisten AI Lokal Anda</h2>
-      <p className="mt-2 max-w-md text-sm text-muted">
-        Berjalan sepenuhnya di laptop Anda lewat Ollama. Unggah dokumen di sebelah kiri, lalu
-        tanyakan apa pun — jawaban dirujuk langsung ke sumbernya.
+      <p className="label-mono mb-3">Private · Offline · Yours</p>
+      <h2 className="text-balance text-3xl font-semibold tracking-[-0.02em]">
+        Ask your knowledge,
+        <br />
+        not the cloud.
+      </h2>
+      <p className="mt-3 max-w-sm text-pretty text-sm leading-relaxed text-muted">
+        Runs fully on your machine. Add documents, then ask. Every answer cites its source.
       </p>
       {guardOn && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-accent">
-          <ShieldCheck className="h-3.5 w-3.5" /> Guardrail keamanan aktif
+        <p className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent-soft/30 px-3 py-1 text-xs text-accent">
+          <ShieldCheck className="h-3.5 w-3.5" /> Safety guardrail active
         </p>
       )}
-      {hasDocs && (
-        <div className="mt-7 flex flex-wrap justify-center gap-2">
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => onPick(s)}
-              className="rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-muted transition-colors hover:border-accent/50 hover:text-foreground cursor-pointer"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="mt-8 flex flex-wrap justify-center gap-2">
+        {(hasDocs
+          ? SUGGESTIONS
+          : ["What can you do?", "Explain RAG in one paragraph", "Write a haiku about offline AI"]
+        ).map((s) => (
+          <button
+            key={s}
+            onClick={() => onPick(s)}
+            className="press group flex items-center gap-1.5 rounded-full border border-border bg-surface/70 px-3.5 py-2 text-xs text-muted hover:border-accent/50 hover:text-foreground cursor-pointer"
+          >
+            <Sparkle className="h-3 w-3 text-faint transition-colors group-hover:text-accent" />
+            {s}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

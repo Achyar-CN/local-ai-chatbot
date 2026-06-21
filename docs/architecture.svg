@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="ar--head" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
+      <path d="M0 0 L7 3 L0 6 Z" fill="#C9A14A" />
+    </marker>
+    <style>
+      .title { fill:#F3EEE3; font-size:30px; font-weight:700; letter-spacing:-0.5px; }
+      .sub   { fill:#9C927C; font-size:14px; }
+      .grp   { fill:#1b1810; stroke:#3a3326; stroke-width:1.2; }
+      .box   { fill:#211d14; stroke:#3a3326; stroke-width:1.2; }
+      .pill  { fill:#262115; stroke:#46402e; stroke-width:1; }
+      .chip  { fill:rgba(232,179,57,0.09); stroke:rgba(232,179,57,0.34); stroke-width:1; }
+      .h     { fill:#E8B339; font-size:12px; font-weight:600; letter-spacing:1.5px;
+               font-family:ui-monospace,'Cascadia Code',Menlo,monospace; }
+      .name  { fill:#F3EEE3; font-size:15px; font-weight:600; text-anchor:middle; }
+      .nm    { fill:#F3EEE3; font-size:13px; font-weight:600; text-anchor:middle; }
+      .small { fill:#C9BFA8; font-size:12px; text-anchor:middle; }
+      .tiny  { fill:#8A8169; font-size:10.5px; text-anchor:middle;
+               font-family:ui-monospace,'Cascadia Code',Menlo,monospace; }
+      .flow  { stroke:#C9A14A; stroke-width:1.6; fill:none; }
+      .dash  { stroke:#C9A14A; stroke-width:1.4; fill:none; stroke-dasharray:5 5; opacity:0.8; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" fill="#17150F" rx="0" />
+
+  <text x="40" y="50" class="title">Atlas Architecture</text>
+  <text x="40" y="74" class="sub">Private RAG assistant running fully on-device via Ollama.</text>
+
+  <!-- offline boundary -->
+  <rect x="28" y="96" width="1144" height="608" rx="18" fill="none" stroke="#534a37" stroke-width="1.3" stroke-dasharray="3 6" />
+  <rect x="506" y="84" width="188" height="26" rx="13" class="chip" />
+  <text x="600" y="101" class="h" text-anchor="middle">100% LOCAL AND OFFLINE</text>
+
+  <!-- Layer 1: interface -->
+  <rect x="320" y="124" width="560" height="74" rx="12" class="box" />
+  <text x="600" y="156" class="name">Browser UI</text>
+  <text x="600" y="178" class="small">Next.js 16, React 19, streaming chat, source viewer</text>
+
+  <path class="flow" d="M600 198 L600 214" marker-end="url(#ar--head)" />
+
+  <!-- Layer 2: API -->
+  <rect x="200" y="216" width="800" height="90" rx="12" class="box" />
+  <text x="224" y="240" class="h">NEXT.JS API  /api/*</text>
+  <g>
+    <rect x="216" y="256" width="140" height="34" rx="8" class="pill" /><text x="286" y="278" class="nm">chat</text>
+    <rect x="372" y="256" width="140" height="34" rx="8" class="pill" /><text x="442" y="278" class="nm">ingest</text>
+    <rect x="528" y="256" width="140" height="34" rx="8" class="pill" /><text x="598" y="278" class="nm">files</text>
+    <rect x="684" y="256" width="140" height="34" rx="8" class="pill" /><text x="754" y="278" class="nm">conversations</text>
+    <rect x="840" y="256" width="140" height="34" rx="8" class="pill" /><text x="910" y="278" class="nm">title</text>
+  </g>
+
+  <!-- split bus -->
+  <path class="flow" d="M600 306 L600 318 L320 318 L320 328" marker-end="url(#ar--head)" />
+  <path class="flow" d="M600 318 L880 318 L880 328" marker-end="url(#ar--head)" />
+
+  <!-- Layer 3: processing -->
+  <rect x="72" y="328" width="496" height="176" rx="14" class="grp" />
+  <text x="98" y="358" class="h">INGESTION</text>
+  <text x="98" y="378" class="small" text-anchor="start" style="fill:#8A8169;font-size:11.5px">parse, chunk, embed, index</text>
+  <rect x="98" y="420" width="130" height="46" rx="9" class="pill" /><text x="163" y="448" class="nm">Parse</text>
+  <rect x="254" y="420" width="130" height="46" rx="9" class="pill" /><text x="319" y="448" class="nm">Chunk</text>
+  <rect x="410" y="420" width="130" height="46" rx="9" class="pill" /><text x="475" y="448" class="nm">Embed</text>
+  <path class="flow" d="M228 443 L252 443" marker-end="url(#ar--head)" />
+  <path class="flow" d="M384 443 L408 443" marker-end="url(#ar--head)" />
+
+  <rect x="632" y="328" width="496" height="176" rx="14" class="grp" />
+  <text x="658" y="358" class="h">QUERY</text>
+  <text x="658" y="378" class="small" text-anchor="start" style="fill:#8A8169;font-size:11.5px">guardrail, retrieve, rerank, generate</text>
+  <rect x="650" y="420" width="108" height="46" rx="9" class="pill" /><text x="704" y="448" class="nm">Guardrail</text>
+  <rect x="768" y="420" width="108" height="46" rx="9" class="pill" /><text x="822" y="448" class="nm">Retrieve</text>
+  <rect x="886" y="420" width="108" height="46" rx="9" class="pill" /><text x="940" y="448" class="nm">Web</text>
+  <rect x="1004" y="420" width="108" height="46" rx="9" class="pill" /><text x="1058" y="448" class="nm">Rerank</text>
+  <path class="flow" d="M758 443 L766 443" marker-end="url(#ar--head)" />
+  <path class="flow" d="M876 443 L884 443" marker-end="url(#ar--head)" />
+  <path class="flow" d="M994 443 L1002 443" marker-end="url(#ar--head)" />
+
+  <!-- down to layer 4 -->
+  <path class="flow" d="M320 504 L320 538" marker-end="url(#ar--head)" />
+  <path class="flow" d="M880 504 L880 538" marker-end="url(#ar--head)" />
+
+  <!-- cross links -->
+  <path class="dash" d="M540 500 L662 540" marker-end="url(#ar--head)" />
+  <text x="612" y="512" class="tiny">embed</text>
+  <path class="dash" d="M560 540 L650 500" marker-end="url(#ar--head)" />
+  <text x="556" y="512" class="tiny" text-anchor="end">retrieve</text>
+
+  <!-- Layer 4: storage + runtime -->
+  <rect x="72" y="540" width="496" height="120" rx="14" class="grp" />
+  <text x="98" y="568" class="h">STORAGE</text>
+  <g>
+    <rect x="98" y="588" width="150" height="48" rx="9" class="chip" />
+    <text x="173" y="610" class="nm" style="fill:#E8B339">LanceDB</text><text x="173" y="626" class="tiny">vectors</text>
+    <rect x="254" y="588" width="150" height="48" rx="9" class="chip" />
+    <text x="329" y="610" class="nm" style="fill:#E8B339">uploads</text><text x="329" y="626" class="tiny">source files</text>
+    <rect x="410" y="588" width="150" height="48" rx="9" class="chip" />
+    <text x="485" y="610" class="nm" style="fill:#E8B339">.data</text><text x="485" y="626" class="tiny">chat history</text>
+  </g>
+
+  <rect x="632" y="540" width="496" height="120" rx="14" class="grp" />
+  <text x="658" y="568" class="h">OLLAMA RUNTIME (CPU)</text>
+  <g>
+    <rect x="650" y="588" width="110" height="48" rx="9" class="chip" />
+    <text x="705" y="610" class="tiny" style="fill:#F3EEE3;font-size:12px;font-weight:600">Qwen2.5 7B</text><text x="705" y="626" class="tiny">chat</text>
+    <rect x="768" y="588" width="110" height="48" rx="9" class="chip" />
+    <text x="823" y="610" class="tiny" style="fill:#F3EEE3;font-size:12px;font-weight:600">Llama3.2 3B</text><text x="823" y="626" class="tiny">chat fast</text>
+    <rect x="886" y="588" width="110" height="48" rx="9" class="chip" />
+    <text x="941" y="610" class="tiny" style="fill:#F3EEE3;font-size:12px;font-weight:600">nomic-embed</text><text x="941" y="626" class="tiny">embeddings</text>
+    <rect x="1004" y="588" width="110" height="48" rx="9" class="chip" />
+    <text x="1059" y="610" class="tiny" style="fill:#F3EEE3;font-size:12px;font-weight:600">Llama Guard</text><text x="1059" y="626" class="tiny">safety</text>
+  </g>
+
+  <!-- legend -->
+  <line x1="98" y1="684" x2="128" y2="684" class="flow" marker-end="url(#ar--head)" />
+  <text x="136" y="688" class="tiny" text-anchor="start">data flow</text>
+  <line x1="232" y1="684" x2="262" y2="684" class="dash" marker-end="url(#ar--head)" />
+  <text x="270" y="688" class="tiny" text-anchor="start">model and store access</text>
+</svg>

@@ -1,24 +1,28 @@
 @import "tailwindcss";
 
-/* ── Design tokens (dark OLED, emerald accent) ─────────────────────── */
+/* ── Design tokens — "lamp-lit study": warm charcoal + honey-amber ───── */
 @theme {
-  --color-bg: #080b12;
-  --color-surface: #0d1320;
-  --color-elevated: #131b2a;
-  --color-foreground: #f1f5f9;
-  --color-muted: #8a97ad;
-  --color-faint: #5a6678;
-  --color-border: #1b2433;
-  --color-accent: #22c55e;
-  --color-accent-soft: #1a3326;
-  --color-accent-fg: #04140b;
-  --color-user: #18222f;
-  --color-destructive: #ef4444;
+  --color-bg: oklch(0.17 0.008 75);
+  --color-surface: oklch(0.205 0.009 75);
+  --color-elevated: oklch(0.255 0.01 75);
+  --color-foreground: oklch(0.96 0.012 85);
+  --color-muted: oklch(0.74 0.016 80);
+  --color-faint: oklch(0.56 0.014 78);
+  --color-border: oklch(0.3 0.011 75);
+  --color-accent: oklch(0.82 0.14 79);
+  --color-accent-soft: oklch(0.33 0.055 72);
+  --color-accent-fg: oklch(0.22 0.04 70);
+  --color-user: oklch(0.245 0.009 75);
+  --color-destructive: oklch(0.68 0.18 28);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-mono), ui-monospace, monospace;
+  --font-mono: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
 
   --radius: 0.875rem;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-glow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 30%, transparent),
+    0 8px 30px -10px color-mix(in oklab, var(--color-accent) 55%, transparent);
 }
 
 @layer base {
@@ -32,11 +36,17 @@
     background-color: var(--color-bg);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-feature-settings: "cv05" 1, "ss01" 1, "cv01" 1;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
   ::selection {
-    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+    background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+    color: var(--color-foreground);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-accent) 70%, transparent);
+    outline-offset: 2px;
   }
   /* Scrollbar */
   * {
@@ -59,19 +69,55 @@
   }
 }
 
-/* ── Background ambience ───────────────────────────────────────────── */
+/* ── Background ambience: warm lamp glow + fine grain ──────────────────── */
 .app-bg {
+  position: relative;
   background:
-    radial-gradient(60rem 40rem at 12% -10%, rgba(34, 197, 94, 0.08), transparent 60%),
-    radial-gradient(50rem 40rem at 100% 0%, rgba(56, 189, 248, 0.05), transparent 55%),
+    radial-gradient(58rem 38rem at 8% -8%, color-mix(in oklab, var(--color-accent) 12%, transparent), transparent 60%),
+    radial-gradient(46rem 36rem at 108% 4%, color-mix(in oklab, var(--color-accent) 6%, transparent), transparent 58%),
     var(--color-bg);
 }
+.app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.app-bg > * {
+  position: relative;
+  z-index: 1;
+}
 
-/* ── Animations ────────────────────────────────────────────────────── */
+/* ── Utilities ─────────────────────────────────────────────────────────── */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+.glow-accent {
+  box-shadow: var(--shadow-glow);
+}
+.press {
+  transition:
+    transform 0.12s var(--ease-out-quint),
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.2s ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+/* ── Animations ────────────────────────────────────────────────────────── */
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(7px);
   }
   to {
     opacity: 1;
@@ -79,7 +125,18 @@
   }
 }
 .animate-fade-up {
-  animation: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.4s var(--ease-out-quint) both;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes blink {
@@ -101,14 +158,33 @@
   animation: blink 1.2s infinite ease-in-out;
 }
 
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 50%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.pulse-ring {
+  animation: pulse-ring 2s infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
-  .typing-dot {
+  .typing-dot,
+  .pulse-ring {
     animation: none;
+  }
+  .press {
+    transition: none;
   }
 }
 
-/* ── Markdown / message prose ──────────────────────────────────────── */
+/* ── Markdown / message prose ──────────────────────────────────────────── */
 .prose-chat {
   line-height: 1.7;
   font-size: 0.95rem;
@@ -123,6 +199,7 @@
   font-weight: 650;
   line-height: 1.3;
   margin-top: 1.25rem;
+  letter-spacing: -0.01em;
 }
 .prose-chat h1 { font-size: 1.25rem; }
 .prose-chat h2 { font-size: 1.1rem; }
@@ -131,6 +208,7 @@
   color: var(--color-accent);
   text-decoration: underline;
   text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
 }
 .prose-chat ul,
 .prose-chat ol {
@@ -142,12 +220,12 @@
 .prose-chat code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  background: rgba(148, 163, 184, 0.14);
+  background: color-mix(in oklab, var(--color-foreground) 12%, transparent);
   padding: 0.12em 0.4em;
   border-radius: 0.4rem;
 }
 .prose-chat pre {
-  background: #0a0f1a;
+  background: oklch(0.14 0.008 75);
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.9rem 1rem;
@@ -173,4 +251,8 @@
   border: 1px solid var(--color-border);
   padding: 0.4rem 0.6rem;
   text-align: left;
+}
+.prose-chat th {
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in oklab, var(--color-foreground) 5%, transparent);
 }

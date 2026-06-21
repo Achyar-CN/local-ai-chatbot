@@ -1,9 +1,10 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { Bot, User, ShieldAlert } from "lucide-react";
+import { User, ShieldAlert } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { Sources } from "./Sources";
+import { Brandmark } from "./Brandmark";
 import type { Source } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ export function MessageBubble({
         ) : blocked ? (
           <ShieldAlert className="h-4 w-4" />
         ) : (
-          <Bot className="h-4 w-4" />
+          <Brandmark className="h-4 w-4" />
         )}
       </div>
 
@@ -78,7 +79,7 @@ export function MessageBubble({
         >
           {blocked && (
             <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-400">
-              <ShieldAlert className="h-3.5 w-3.5" /> Diblokir oleh guardrail
+              <ShieldAlert className="h-3.5 w-3.5" /> Blocked by guardrail
             </div>
           )}
           {text ? <Markdown>{text}</Markdown> : <span className="text-sm text-muted">…</span>}
@@ -93,7 +94,7 @@ export function ThinkingBubble() {
   return (
     <div className="flex gap-3 animate-fade-up">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
-        <Bot className="h-4 w-4" />
+        <Brandmark className="h-4 w-4" />
       </div>
       <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm border border-border bg-surface px-4 py-4">
         <span className="typing-dot" style={{ animationDelay: "0ms" }} />

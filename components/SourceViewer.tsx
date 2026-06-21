@@ -45,8 +45,8 @@ export function SourceViewer({ source, onClose }: { source: Source | null; onClo
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{source.docName}</p>
                 <p className="text-xs text-muted">
-                  {isWeb ? "Sumber web" : `Halaman ${source.page}`}
-                  {!isWeb && source.score > 0 && ` · relevansi ${(source.score * 100).toFixed(0)}%`}
+                  {isWeb ? "Web source" : `Page ${source.page}`}
+                  {!isWeb && source.score > 0 && ` · ${(source.score * 100).toFixed(0)}% match`}
                 </p>
               </div>
               <a
@@ -54,14 +54,14 @@ export function SourceViewer({ source, onClose }: { source: Source | null; onClo
                 target="_blank"
                 rel="noreferrer"
                 className="shrink-0 rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-foreground cursor-pointer"
-                aria-label="Buka di tab baru"
-                title="Buka di tab baru"
+                aria-label="Open in new tab"
+                title="Open in new tab"
               >
                 <ExternalLink className="h-4 w-4" />
               </a>
               <button
                 onClick={onClose}
-                aria-label="Tutup"
+                aria-label="Close"
                 className="shrink-0 rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-foreground cursor-pointer"
               >
                 <X className="h-4 w-4" />
@@ -70,9 +70,7 @@ export function SourceViewer({ source, onClose }: { source: Source | null; onClo
 
             {/* Relevant excerpt */}
             <div className="border-b border-border px-4 py-3">
-              <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-faint">
-                Kutipan relevan
-              </p>
+              <p className="label-mono mb-1.5">Relevant excerpt</p>
               <blockquote className="border-l-2 border-accent/50 bg-accent-soft/30 px-3 py-2 text-xs leading-relaxed text-foreground">
                 {source.text}
               </blockquote>
@@ -83,16 +81,16 @@ export function SourceViewer({ source, onClose }: { source: Source | null; onClo
               {isWeb ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
                   <Globe className="h-8 w-8 text-faint" />
-                  <p className="text-sm text-muted">
-                    Halaman web tidak ditampilkan inline (kebijakan keamanan situs).
+                  <p className="max-w-xs text-sm text-muted">
+                    Web pages cannot be shown inline. Open the link to view the full page.
                   </p>
                   <a
                     href={source.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-fg cursor-pointer"
+                    className="press inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-fg cursor-pointer"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Buka {new URL(source.url!).hostname}
+                    <ExternalLink className="h-3.5 w-3.5" /> Open {new URL(source.url!).hostname}
                   </a>
                 </div>
               ) : fileUrl ? (
@@ -100,11 +98,11 @@ export function SourceViewer({ source, onClose }: { source: Source | null; onClo
                   key={pdfUrl}
                   src={pdfUrl ?? fileUrl}
                   className="h-full w-full"
-                  title={`Sumber: ${source.docName}`}
+                  title={`Source: ${source.docName}`}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted">
-                  File asli tidak tersedia.
+                  Original file unavailable.
                 </div>
               )}
             </div>

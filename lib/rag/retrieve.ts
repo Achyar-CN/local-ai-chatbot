@@ -67,7 +67,7 @@ export function buildSystemPrompt(sources: Source[]): string {
     .map((s) => {
       const head =
         s.kind === "web"
-          ? `[${s.n}] (web: ${s.docName} — ${s.url})`
+          ? `[${s.n}] (web: ${s.docName} · ${s.url})`
           : `[${s.n}] (${s.docName}, hal. ${s.page})`;
       return `${head}\n${s.text}`;
     })
@@ -80,6 +80,7 @@ export function buildSystemPrompt(sources: Source[]): string {
     "- Sitasikan sumber memakai penanda [n] sesuai nomor potongan yang kamu pakai.",
     "- Jika KONTEKS tidak memuat jawabannya, katakan demikian dan jangan mengarang.",
     "- Jawab ringkas, jelas, dan dalam bahasa yang sama dengan pertanyaan pengguna.",
+    "- Write naturally. Do not use em-dashes (—) or arrows (->); use commas, periods, or parentheses.",
     "",
     "KONTEKS:",
     context,

@@ -12,10 +12,20 @@ export const config = {
   lancedbPath: process.env.LANCEDB_PATH ?? "./.lancedb",
   // Optional self-hosted SearXNG for the most reliable keyless web search.
   searxngUrl: process.env.SEARXNG_URL ?? "",
+  // Llama Guard categories that actually block. Serious-harm only by default,
+  // so benign questions (advice S6, privacy S7, defamation S5, IP S8, elections S13)
+  // are not falsely refused.
+  guardBlock: (process.env.GUARD_BLOCK ?? "S1,S2,S3,S4,S9,S10,S11,S12,S14")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean),
 } as const;
 
-/** Models selectable from the UI. */
+/** Default chat model shown in the UI. */
+export const DEFAULT_CHAT_MODEL = config.chatModelFast;
+
+/** Models selectable from the UI (default first). */
 export const CHAT_MODELS = [
-  { id: config.chatModel, label: "Qwen2.5 7B", hint: "Seimbang · kualitas terbaik" },
-  { id: config.chatModelFast, label: "Llama 3.2 3B", hint: "Cepat · ringan" },
+  { id: config.chatModelFast, label: "Llama 3.2 3B", hint: "Fast and light" },
+  { id: config.chatModel, label: "Qwen2.5 7B", hint: "Slower, best quality" },
 ] as const;
