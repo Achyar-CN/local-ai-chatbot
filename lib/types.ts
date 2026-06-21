@@ -1,10 +1,17 @@
 /** Client-safe shared types (no server imports). */
 export interface Source {
   n: number;
+  kind: "doc" | "web";
+  /** Document name (doc) or page title (web). */
   docName: string;
-  page: number;
   text: string;
   score: number;
+  // doc-only
+  docId?: string;
+  page?: number;
+  ext?: string;
+  // web-only
+  url?: string;
 }
 
 export interface DocumentMeta {
@@ -13,6 +20,8 @@ export interface DocumentMeta {
   size: number;
   chunks: number;
   createdAt: string;
+  ext?: string;
+  mime?: string;
 }
 
 export interface ConversationMeta {

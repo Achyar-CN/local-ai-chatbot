@@ -10,6 +10,8 @@ export const config = {
   chunkSize: Number(process.env.RAG_CHUNK_SIZE ?? 900),
   chunkOverlap: Number(process.env.RAG_CHUNK_OVERLAP ?? 120),
   lancedbPath: process.env.LANCEDB_PATH ?? "./.lancedb",
+  // Optional self-hosted SearXNG for the most reliable keyless web search.
+  searxngUrl: process.env.SEARXNG_URL ?? "",
 } as const;
 
 /** Models selectable from the UI. */

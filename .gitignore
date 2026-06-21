@@ -20,12 +20,14 @@ credentials.json
 #  CLAUDE / AGENT — semua artefak & instruksi terkait Claude
 # =====================================================================
 .claude/
+.agents/
 claude.log
 CLAUDE.md
 AGENTS.md
 memory.md
 memory/
 .mcp.json
+skills-lock.json
 
 # =====================================================================
 #  DATA LOKAL APLIKASI — riwayat chat & vektor dokumen (bisa sensitif)

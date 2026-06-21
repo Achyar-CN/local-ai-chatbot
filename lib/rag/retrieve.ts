@@ -1,26 +1,56 @@
 import { embedQuery } from "./embeddings";
-import { searchChunks, type RetrievedChunk } from "./vectorstore";
+import { searchChunks } from "./vectorstore";
+import { listDocuments } from "./vectorstore";
+import { rerank } from "./rerank";
 import { config } from "../config";
+import type { Source } from "../types";
+import type { WebResult } from "../websearch";
 
-export interface Source {
-  n: number;
-  docName: string;
-  page: number;
-  text: string;
-  score: number;
-}
+export type { Source };
 
-/** Retrieve top-k chunks for a query and shape them into citable sources. */
-export async function retrieve(query: string, k = config.topK): Promise<Source[]> {
+/** Retrieve doc chunks for a query, optionally hybrid-reranked. n is assigned later. */
+export async function retrieve(
+  query: string,
+  k = config.topK,
+  useRerank = true,
+): Promise<Source[]> {
   const vector = await embedQuery(query);
-  const hits = await searchChunks(vector, k);
-  return hits.map((h: RetrievedChunk, i) => ({
-    n: i + 1,
+  // Over-fetch when reranking so the lexical pass has candidates to promote.
+  const fetchK = useRerank ? Math.min(k * 5, 40) : k;
+  let hits = await searchChunks(vector, fetchK);
+  if (useRerank) hits = rerank(query, hits, k);
+  else hits = hits.slice(0, k);
+
+  const docs = await listDocuments();
+  const extById = new Map(docs.map((d) => [d.id, d.ext]));
+
+  return hits.map((h) => ({
+    n: 0,
+    kind: "doc" as const,
     docName: h.docName,
+    docId: h.docId,
     page: h.page,
+    ext: extById.get(h.docId),
     text: h.text,
     score: Number(h.score.toFixed(3)),
   }));
+}
+
+/** Shape web search results into citable sources. */
+export function webToSources(results: WebResult[]): Source[] {
+  return results.map((r) => ({
+    n: 0,
+    kind: "web" as const,
+    docName: r.title,
+    url: r.url,
+    text: r.text || r.snippet,
+    score: 0,
+  }));
+}
+
+/** Concatenate sources and assign stable [n] numbers. */
+export function numberSources(...groups: Source[][]): Source[] {
+  return groups.flat().map((s, i) => ({ ...s, n: i + 1 }));
 }
 
 /** Build the grounded system prompt fed to the chat model. */
@@ -28,17 +58,23 @@ export function buildSystemPrompt(sources: Source[]): string {
   if (sources.length === 0) {
     return [
       "Kamu adalah asisten AI lokal yang membantu dan akurat.",
-      "Tidak ada dokumen relevan yang ditemukan untuk pertanyaan ini.",
+      "Tidak ada konteks dokumen/web yang ditemukan untuk pertanyaan ini.",
       "Jawab dari pengetahuan umummu, dan katakan dengan jujur bila tidak yakin.",
     ].join(" ");
   }
 
   const context = sources
-    .map((s) => `[${s.n}] (${s.docName}, hal. ${s.page})\n${s.text}`)
+    .map((s) => {
+      const head =
+        s.kind === "web"
+          ? `[${s.n}] (web: ${s.docName} — ${s.url})`
+          : `[${s.n}] (${s.docName}, hal. ${s.page})`;
+      return `${head}\n${s.text}`;
+    })
     .join("\n\n");
 
   return [
-    "Kamu adalah asisten AI lokal yang menjawab berdasarkan KONTEKS dokumen di bawah.",
+    "Kamu adalah asisten AI lokal yang menjawab berdasarkan KONTEKS di bawah (dari dokumen pengguna dan/atau hasil pencarian web).",
     "Aturan:",
     "- Utamakan informasi dari KONTEKS untuk menjawab.",
     "- Sitasikan sumber memakai penanda [n] sesuai nomor potongan yang kamu pakai.",

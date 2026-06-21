@@ -7,8 +7,10 @@ import { Sparkles, AlertTriangle, X, ShieldCheck } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { Composer } from "@/components/Composer";
 import { MessageBubble, ThinkingBubble } from "@/components/MessageBubble";
+import { SourceViewer } from "@/components/SourceViewer";
 import { config } from "@/lib/config";
-import type { DocumentMeta, ConversationMeta } from "@/lib/types";
+import type { DocumentMeta, ConversationMeta, Source } from "@/lib/types";
+import type { UIMessage } from "ai";
 
 const SUGGESTIONS = [
   "Ringkas dokumen yang saya unggah",
@@ -16,16 +18,36 @@ const SUGGESTIONS = [
   "Jelaskan konsep utama secara sederhana",
 ];
 
+function messageText(m: UIMessage): string {
+  return (m.parts as { type: string; text?: string }[])
+    .filter((p) => p.type === "text")
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+}
+
+function messagesToMarkdown(messages: UIMessage[]): string {
+  const lines = [`# Percakapan — ${new Date().toLocaleString("id-ID")}`, ""];
+  for (const m of messages) {
+    const who = m.role === "user" ? "🧑 Anda" : "🤖 Asisten";
+    lines.push(`## ${who}`, "", messageText(m) || "_(tanpa teks)_", "");
+  }
+  return lines.join("\n");
+}
+
 export default function Home() {
   const [input, setInput] = useState("");
   const [model, setModel] = useState<string>(config.chatModel);
   const [ragOn, setRagOn] = useState(true);
+  const [webOn, setWebOn] = useState(false);
+  const [rerankOn, setRerankOn] = useState(true);
   const [guardOn, setGuardOn] = useState(true);
   const [topK, setTopK] = useState<number>(config.topK);
 
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [convId, setConvId] = useState<string>(() => crypto.randomUUID());
+  const [viewerSource, setViewerSource] = useState<Source | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [ollamaOnline, setOllamaOnline] = useState<boolean | null>(null);
@@ -33,6 +55,7 @@ export default function Home() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedRef = useRef<string>("");
+  const titledRef = useRef<Set<string>>(new Set());
 
   const { messages, sendMessage, status, stop, error, setMessages } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
@@ -75,12 +98,36 @@ export default function Home() {
     const sig = `${convId}:${messages.length}`;
     if (savedRef.current === sig) return;
     savedRef.current = sig;
+
+    const id = convId;
     fetch("/api/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: convId, messages }),
+      body: JSON.stringify({ id, messages }),
     })
-      .then(refreshConversations)
+      .then(async () => {
+        // Auto-title once, after the first full exchange.
+        if (!titledRef.current.has(id) && messages.length >= 2) {
+          titledRef.current.add(id);
+          const firstUser = messages.find((m) => m.role === "user");
+          const text = firstUser ? messageText(firstUser) : "";
+          if (text) {
+            const r = await fetch("/api/title", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text }),
+            }).then((res) => res.json());
+            if (r.title) {
+              await fetch(`/api/conversations/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: r.title }),
+              });
+            }
+          }
+        }
+        refreshConversations();
+      })
       .catch(() => {});
   }, [status, messages, convId, refreshConversations]);
 
@@ -94,7 +141,22 @@ export default function Home() {
     const value = text.trim();
     if (!value || busy) return;
     setInput("");
-    sendMessage({ text: value }, { body: { useRag: ragOn, guard: guardOn, model, topK } });
+    sendMessage(
+      { text: value },
+      { body: { useRag: ragOn, web: webOn, rerank: rerankOn, guard: guardOn, model, topK } },
+    );
+  };
+
+  const handleExport = () => {
+    if (messages.length === 0) return;
+    const md = messagesToMarkdown(messages);
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chat-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleUpload = async (files: FileList | File[]) => {
@@ -167,10 +229,16 @@ export default function Home() {
         setModel={setModel}
         ragOn={ragOn}
         setRagOn={setRagOn}
+        webOn={webOn}
+        setWebOn={setWebOn}
+        rerankOn={rerankOn}
+        setRerankOn={setRerankOn}
         guardOn={guardOn}
         setGuardOn={setGuardOn}
         topK={topK}
         setTopK={setTopK}
+        onExport={handleExport}
+        canExport={messages.length > 0}
         ollamaOnline={ollamaOnline}
       />
 
@@ -194,7 +262,7 @@ export default function Home() {
             ) : (
               <div className="space-y-6">
                 {messages.map((m) => (
-                  <MessageBubble key={m.id} message={m} />
+                  <MessageBubble key={m.id} message={m} onOpenSource={setViewerSource} />
                 ))}
                 {status === "submitted" && <ThinkingBubble />}
               </div>
@@ -215,6 +283,8 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      <SourceViewer source={viewerSource} onClose={() => setViewerSource(null)} />
     </div>
   );
 }

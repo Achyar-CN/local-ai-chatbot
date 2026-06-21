@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { chunkPages } from "./chunk";
 import { parseFile } from "./parse";
 import { embedDocuments } from "./embeddings";
+import { saveOriginal, extOf } from "./files";
 import {
   addChunks,
   registerDocument,
@@ -36,12 +37,17 @@ export async function ingestFile(
 
   await addChunks(rows);
 
+  const ext = extOf(filename);
+  await saveOriginal(docId, ext, buffer);
+
   const meta: DocumentMeta = {
     id: docId,
     name: filename,
     size: buffer.length,
     chunks: rows.length,
     createdAt: new Date().toISOString(),
+    ext,
+    mime: mime || undefined,
   };
   await registerDocument(meta);
   return meta;

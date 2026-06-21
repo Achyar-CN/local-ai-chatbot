@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import * as lancedb from "@lancedb/lancedb";
 import { Schema, Field, Float32, FixedSizeList, Utf8, Int32 } from "apache-arrow";
 import { config } from "../config";
+import { deleteOriginal } from "./files";
 
 const TABLE = "chunks";
 const DB_DIR = path.resolve(process.cwd(), config.lancedbPath);
@@ -33,6 +34,8 @@ export interface DocumentMeta {
   size: number;
   chunks: number;
   createdAt: string;
+  ext?: string;
+  mime?: string;
 }
 
 function vectorField(dim: number) {
@@ -119,9 +122,15 @@ export async function registerDocument(doc: DocumentMeta) {
   await writeManifest([...docs.filter((d) => d.id !== doc.id), doc]);
 }
 
+export async function getDocument(docId: string): Promise<DocumentMeta | undefined> {
+  return (await readManifest()).find((d) => d.id === docId);
+}
+
 export async function deleteDocument(docId: string) {
   const table = await getTable();
   await table.delete(`docId = '${docId.replace(/'/g, "''")}'`);
   const docs = await readManifest();
+  const doc = docs.find((d) => d.id === docId);
+  if (doc?.ext) await deleteOriginal(docId, doc.ext);
   await writeManifest(docs.filter((d) => d.id !== docId));
 }

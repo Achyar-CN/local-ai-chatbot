@@ -6,7 +6,14 @@ import {
   type UIMessage,
 } from "ai";
 import { ollama } from "@/lib/ollama";
-import { retrieve, buildSystemPrompt, type Source } from "@/lib/rag/retrieve";
+import {
+  retrieve,
+  webToSources,
+  numberSources,
+  buildSystemPrompt,
+  type Source,
+} from "@/lib/rag/retrieve";
+import { webSearch } from "@/lib/websearch";
 import { moderate, refusalMessage, type GuardResult } from "@/lib/guardrail";
 import { config, CHAT_MODELS } from "@/lib/config";
 
@@ -27,12 +34,16 @@ export async function POST(req: Request) {
   const {
     messages,
     useRag = true,
+    web = false,
+    rerank = true,
     guard = false,
     model,
     topK,
   } = (await req.json()) as {
     messages: UIMessage[];
     useRag?: boolean;
+    web?: boolean;
+    rerank?: boolean;
     guard?: boolean;
     model?: string;
     topK?: number;
@@ -68,17 +79,34 @@ export async function POST(req: Request) {
     }
   }
 
-  // --- Retrieval ----------------------------------------------------------
-  let sources: Source[] = [];
-  if (useRag && query) {
-    try {
-      sources = await retrieve(query, k);
-    } catch (err) {
-      console.error("RAG retrieval failed:", err);
-    }
+  // --- Retrieval (docs + web, run in parallel) ----------------------------
+  let docSources: Source[] = [];
+  let webSources: Source[] = [];
+  if (query && (useRag || web)) {
+    const [docs, webs] = await Promise.all([
+      useRag
+        ? retrieve(query, k, rerank).catch((err) => {
+            console.error("RAG retrieval failed:", err);
+            return [] as Source[];
+          })
+        : Promise.resolve([] as Source[]),
+      web
+        ? webSearch(query)
+            .then(webToSources)
+            .catch((err) => {
+              console.error("Web search failed:", err);
+              return [] as Source[];
+            })
+        : Promise.resolve([] as Source[]),
+    ]);
+    docSources = docs;
+    webSources = webs;
   }
 
-  const system = useRag
+  const sources = numberSources(docSources, webSources);
+  const grounded = useRag || web;
+
+  const system = grounded
     ? buildSystemPrompt(sources)
     : "Kamu adalah asisten AI lokal yang membantu, akurat, dan ramah. Jawab dengan jelas dalam bahasa yang sama dengan pengguna.";
 

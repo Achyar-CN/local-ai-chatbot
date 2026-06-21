@@ -31,7 +31,13 @@ function extractGuard(message: UIMessage): GuardData | null {
   return part ? (part.data as GuardData) : null;
 }
 
-export function MessageBubble({ message }: { message: UIMessage }) {
+export function MessageBubble({
+  message,
+  onOpenSource,
+}: {
+  message: UIMessage;
+  onOpenSource: (s: Source) => void;
+}) {
   const isUser = message.role === "user";
   const text = extractText(message);
   const sources = extractSources(message);
@@ -76,7 +82,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
             </div>
           )}
           {text ? <Markdown>{text}</Markdown> : <span className="text-sm text-muted">…</span>}
-          {!isUser && !blocked && <Sources sources={sources} />}
+          {!isUser && !blocked && <Sources sources={sources} onOpen={onOpenSource} />}
         </div>
       </div>
     </div>

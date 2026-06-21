@@ -13,6 +13,9 @@ import {
   ShieldCheck,
   MessageSquare,
   Files,
+  Globe,
+  ListFilter,
+  Download,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { CHAT_MODELS } from "@/lib/config";
@@ -36,10 +39,16 @@ interface SidebarProps {
   setModel: (m: string) => void;
   ragOn: boolean;
   setRagOn: (v: boolean) => void;
+  webOn: boolean;
+  setWebOn: (v: boolean) => void;
+  rerankOn: boolean;
+  setRerankOn: (v: boolean) => void;
   guardOn: boolean;
   setGuardOn: (v: boolean) => void;
   topK: number;
   setTopK: (v: number) => void;
+  onExport: () => void;
+  canExport: boolean;
   ollamaOnline: boolean | null;
 }
 
@@ -119,6 +128,12 @@ export function Sidebar(props: SidebarProps) {
           onChange={props.setRagOn}
         />
         <Toggle
+          label="Pencarian web"
+          icon={<Globe className="h-3.5 w-3.5 text-muted" />}
+          checked={props.webOn}
+          onChange={props.setWebOn}
+        />
+        <Toggle
           label="Guardrail keamanan"
           icon={<ShieldCheck className="h-3.5 w-3.5 text-muted" />}
           checked={props.guardOn}
@@ -126,22 +141,38 @@ export function Sidebar(props: SidebarProps) {
         />
 
         {props.ragOn && (
-          <div>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-muted">Potongan diambil (top-k)</span>
-              <span className="tabular-nums text-foreground">{props.topK}</span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={8}
-              step={1}
-              value={props.topK}
-              onChange={(e) => props.setTopK(Number(e.target.value))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-elevated accent-accent"
+          <>
+            <Toggle
+              label="Rerank hybrid (akurasi)"
+              icon={<ListFilter className="h-3.5 w-3.5 text-muted" />}
+              checked={props.rerankOn}
+              onChange={props.setRerankOn}
             />
-          </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="font-medium text-muted">Potongan diambil (top-k)</span>
+                <span className="tabular-nums text-foreground">{props.topK}</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={8}
+                step={1}
+                value={props.topK}
+                onChange={(e) => props.setTopK(Number(e.target.value))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-elevated accent-accent"
+              />
+            </div>
+          </>
         )}
+
+        <button
+          onClick={props.onExport}
+          disabled={!props.canExport}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-elevated py-2 text-xs font-medium text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 enabled:cursor-pointer"
+        >
+          <Download className="h-3.5 w-3.5" /> Export chat (.md)
+        </button>
 
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Model</label>
