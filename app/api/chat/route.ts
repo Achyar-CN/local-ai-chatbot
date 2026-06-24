@@ -131,9 +131,13 @@ export async function POST(req: Request) {
   const sources = numberSources(docSources, webSources);
   const grounded = sources.length > 0;
 
-  const system = grounded
+  const chartHint =
+    'To draw a chart, output a fenced code block whose language tag is exactly chart, containing JSON like {"type":"line","title":"GDP","data":[{"x":"2005","GDP":100},{"x":"2010","GDP":150}],"series":[{"key":"GDP"}]}. Each data row has an x field for the category plus one numeric field per series, and every series key must match a numeric field name in data. type is line, bar, area, or pie (pie rows use name and value). Never output HTML or script tags; the app renders chart blocks natively.';
+
+  const base = grounded
     ? buildSystemPrompt(sources)
     : "You are a helpful, accurate local AI assistant. Answer clearly in the user's language. Write naturally; do not use em-dashes or arrows.";
+  const system = `${base}\n\n${chartHint}`;
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { Check, Copy } from "lucide-react";
+import { ChartView, parseChartSpec } from "./ChartView";
 import "highlight.js/styles/github-dark.css";
 
 function textOf(node: ReactNode): string {
@@ -46,7 +47,15 @@ export const Markdown = memo(function Markdown({ children }: { children: string 
         rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
         components={{
           a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-          pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+          pre: ({ children }) => {
+            const codeEl = children as { props?: { className?: string } };
+            const lang = codeEl?.props?.className ?? "";
+            const raw = textOf(children);
+            if (lang.includes("language-chart") || parseChartSpec(raw)) {
+              return <ChartView source={raw} />;
+            }
+            return <CodeBlock>{children}</CodeBlock>;
+          },
         }}
       >
         {children}
